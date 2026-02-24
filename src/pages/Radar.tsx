@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useMarketData } from '@/hooks/useMarketData';
 import { TokenCard } from '@/components/TokenCard';
 import { TokenTable } from '@/components/TokenTable';
-import { RiskBadge } from '@/components/RiskBadge';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { formatPrice, formatPct, formatNumber } from '@/lib/formatters';
+import { formatPrice, formatPct } from '@/lib/formatters';
 import type { UserPreferences } from '@/lib/userPreferences';
 import type { Chain } from '@/lib/types';
 import {
-  Search, TrendingUp, TrendingDown, Flame, ShieldAlert,
-  SlidersHorizontal, X
+  Search, TrendingUp, TrendingDown, Flame, ShieldAlert, X, Activity
 } from 'lucide-react';
 
 interface RadarProps {
@@ -30,7 +29,6 @@ export default function Radar({ prefs }: RadarProps) {
   const { tokens, risks, signals } = useMarketData();
   const [search, setSearch] = useState('');
   const [chainFilter, setChainFilter] = useState<QuickFilter>('all');
-  const [showFilters, setShowFilters] = useState(false);
 
   const filtered = tokens.filter(t => {
     if (search && !t.symbol.toLowerCase().includes(search.toLowerCase()) && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -52,19 +50,22 @@ export default function Radar({ prefs }: RadarProps) {
   return (
     <div>
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+      <header className="sticky top-0 z-40 glass-strong border-b border-border/50 px-4 py-3">
         <div className="flex items-center gap-2 mb-3">
-          <h1 className="text-lg font-bold text-foreground flex-1">🔍 Radar</h1>
-          <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary animate-pulse-glow">
-            LIVE
+          <div className="flex items-center gap-2 flex-1">
+            <Activity className="w-4 h-4 text-primary" />
+            <h1 className="text-base font-display font-bold text-foreground tracking-tight">Radar</h1>
+          </div>
+          <Badge variant="outline" className="text-[9px] font-mono border-primary/20 text-primary animate-pulse-glow px-2">
+            ● LIVE
           </Badge>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Symbole ou adresse..."
-              className="pl-9 h-9 text-sm bg-secondary border-border"
+              placeholder="Search symbol or address..."
+              className="pl-9 h-9 text-sm bg-secondary/50 border-border/50 focus:border-primary/30"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -75,73 +76,82 @@ export default function Radar({ prefs }: RadarProps) {
             )}
           </div>
         </div>
-        {/* Quick chain filter */}
-        <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-thin pb-1">
+        {/* Chain filter */}
+        <div className="flex gap-1.5 mt-2.5 overflow-x-auto scrollbar-none pb-0.5">
           {(['all', 'eth', 'bsc', 'arb', 'poly', 'base'] as QuickFilter[]).map(f => (
             <button
               key={f}
               onClick={() => setChainFilter(f)}
-              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
                 chainFilter === f
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-muted-foreground'
+                  ? 'bg-primary/15 text-primary border border-primary/20'
+                  : 'bg-secondary/50 text-muted-foreground border border-transparent hover:text-foreground/70'
               }`}
             >
-              {f === 'all' ? 'Toutes' : f.toUpperCase()}
+              {f === 'all' ? 'All Chains' : f.toUpperCase()}
             </button>
           ))}
         </div>
       </header>
 
       <main className="px-4 py-4 space-y-6">
-        {/* Top Gainers/Losers */}
+        {/* Market Pulse - Top Gainers */}
         <section>
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-success" />
-            Top Gainers 1h
-          </h2>
-          <div className="flex gap-3 overflow-x-auto scrollbar-thin pb-2">
-            {topGainers.map(t => (
-              <button
+            <h2 className="text-sm font-display font-semibold text-foreground">Top Gainers</h2>
+            <span className="text-[10px] text-muted-foreground font-mono ml-auto">1h</span>
+          </div>
+          <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+            {topGainers.map((t, i) => (
+              <motion.button
                 key={t.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
                 onClick={() => navigate(`/token/${t.id}`)}
-                className="gradient-card rounded-xl p-3 min-w-[140px] flex-shrink-0 text-left active:scale-95 transition-transform"
+                className="gradient-card rounded-xl p-3 min-w-[130px] flex-shrink-0 text-left active:scale-95 transition-transform"
               >
                 <p className="font-bold text-foreground text-sm">{t.symbol}</p>
-                <p className="font-mono text-xs text-foreground mt-1">{formatPrice(t.price)}</p>
-                <p className="font-mono text-xs text-success mt-0.5">{formatPct(t.priceChange1h)}</p>
-              </button>
+                <p className="font-mono text-xs text-foreground mt-1 tabular-nums">{formatPrice(t.price)}</p>
+                <p className="font-mono text-xs text-success mt-0.5 tabular-nums">{formatPct(t.priceChange1h)}</p>
+              </motion.button>
             ))}
           </div>
         </section>
 
+        {/* Top Losers */}
         <section>
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3">
             <TrendingDown className="w-4 h-4 text-danger" />
-            Top Losers 1h
-          </h2>
-          <div className="flex gap-3 overflow-x-auto scrollbar-thin pb-2">
-            {topLosers.map(t => (
-              <button
+            <h2 className="text-sm font-display font-semibold text-foreground">Top Losers</h2>
+            <span className="text-[10px] text-muted-foreground font-mono ml-auto">1h</span>
+          </div>
+          <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+            {topLosers.map((t, i) => (
+              <motion.button
                 key={t.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
                 onClick={() => navigate(`/token/${t.id}`)}
-                className="gradient-card rounded-xl p-3 min-w-[140px] flex-shrink-0 text-left active:scale-95 transition-transform"
+                className="gradient-card rounded-xl p-3 min-w-[130px] flex-shrink-0 text-left active:scale-95 transition-transform"
               >
                 <p className="font-bold text-foreground text-sm">{t.symbol}</p>
-                <p className="font-mono text-xs text-foreground mt-1">{formatPrice(t.price)}</p>
-                <p className="font-mono text-xs text-danger mt-0.5">{formatPct(t.priceChange1h)}</p>
-              </button>
+                <p className="font-mono text-xs text-foreground mt-1 tabular-nums">{formatPrice(t.price)}</p>
+                <p className="font-mono text-xs text-danger mt-0.5 tabular-nums">{formatPct(t.priceChange1h)}</p>
+              </motion.button>
             ))}
           </div>
         </section>
 
-        {/* New Tokens */}
+        {/* New Listings */}
         <section>
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3">
             <Flame className="w-4 h-4 text-warning" />
-            Nouveaux Tokens
-          </h2>
-          <div className="space-y-0 gradient-card rounded-xl overflow-hidden">
+            <h2 className="text-sm font-display font-semibold text-foreground">New Listings</h2>
+          </div>
+          <div className="gradient-card rounded-xl overflow-hidden">
             {newTokens.map(t => (
               <TokenCard
                 key={t.id}
@@ -154,14 +164,14 @@ export default function Radar({ prefs }: RadarProps) {
           </div>
         </section>
 
-        {/* High Risk */}
+        {/* Danger Zone */}
         {highRisk.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3">
               <ShieldAlert className="w-4 h-4 text-danger" />
-              Risque Élevé
-            </h2>
-            <div className="space-y-0 gradient-card rounded-xl overflow-hidden">
+              <h2 className="text-sm font-display font-semibold text-foreground">Danger Zone</h2>
+            </div>
+            <div className="gradient-card rounded-xl overflow-hidden border-danger/10">
               {highRisk.map(t => (
                 <TokenCard
                   key={t.id}
@@ -177,11 +187,11 @@ export default function Radar({ prefs }: RadarProps) {
 
         {/* All tokens */}
         <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">
-            Tous les tokens ({filtered.length})
+          <h2 className="text-sm font-display font-semibold text-foreground mb-3">
+            All Tokens <span className="text-muted-foreground font-mono text-xs">({filtered.length})</span>
           </h2>
           {isMobile ? (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {filtered.map(t => (
                 <TokenCard
                   key={t.id}

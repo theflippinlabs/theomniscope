@@ -1,12 +1,13 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Radar, Zap, Star, Bell, User } from 'lucide-react';
 
 const tabs = [
   { path: '/', label: 'Radar', icon: Radar },
-  { path: '/opportunities', label: 'Opps', icon: Zap },
-  { path: '/watchlists', label: 'Watchlists', icon: Star },
-  { path: '/alerts', label: 'Alertes', icon: Bell },
-  { path: '/profile', label: 'Profil', icon: User },
+  { path: '/opportunities', label: 'Signals', icon: Zap },
+  { path: '/watchlists', label: 'Watch', icon: Star },
+  { path: '/alerts', label: 'Alerts', icon: Bell },
+  { path: '/profile', label: 'Profile', icon: User },
 ];
 
 interface BottomNavProps {
@@ -17,11 +18,10 @@ export function BottomNav({ unreadAlerts = 0 }: BottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Hide on token detail
   if (location.pathname.startsWith('/token/')) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border/50 safe-area-bottom">
       <div className="flex items-center justify-around max-w-lg mx-auto">
         {tabs.map(tab => {
           const isActive = tab.path === '/'
@@ -33,21 +33,29 @@ export function BottomNav({ unreadAlerts = 0 }: BottomNavProps) {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className={`flex flex-col items-center gap-0.5 py-2 px-3 min-w-[64px] transition-colors relative ${
-                isActive ? 'text-primary' : 'text-muted-foreground'
+              className={`flex flex-col items-center gap-0.5 py-2.5 px-3 min-w-[56px] transition-all relative ${
+                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground/70'
               }`}
             >
               <div className="relative">
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.5} />
                 {tab.path === '/alerts' && unreadAlerts > 0 && (
-                  <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-danger text-[9px] font-bold flex items-center justify-center text-danger-foreground">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-danger text-[9px] font-bold flex items-center justify-center text-danger-foreground"
+                  >
                     {unreadAlerts > 9 ? '9+' : unreadAlerts}
-                  </span>
+                  </motion.span>
                 )}
               </div>
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
               {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />
+                <motion.span
+                  layoutId="nav-indicator"
+                  className="absolute -top-px left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-primary"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                />
               )}
             </button>
           );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Chain } from '@/lib/types';
@@ -7,7 +8,6 @@ import {
   Zap, Shield, Eye, Gauge,
   ChevronRight, ChevronLeft,
   Bell, TrendingUp, ShieldAlert, BarChart3,
-  Radar as RadarIcon,
 } from 'lucide-react';
 
 interface OnboardingProps {
@@ -21,6 +21,12 @@ const chains: { id: Chain; label: string; icon: string }[] = [
   { id: 'arbitrum', label: 'Arbitrum', icon: 'A' },
   { id: 'base', label: 'Base', icon: '◆' },
 ];
+
+const pageVariants = {
+  enter: { opacity: 0, x: 40 },
+  center: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -40 },
+};
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
@@ -53,170 +59,200 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const steps = [
     // Step 1: Mode
-    <div key="mode" className="space-y-6">
-      <div className="text-center space-y-2">
-        <RadarIcon className="w-10 h-10 text-primary mx-auto" />
-        <h2 className="text-xl font-bold text-foreground">Choisis ton style</h2>
-        <p className="text-sm text-muted-foreground">Tu pourras changer à tout moment</p>
+    <div key="mode" className="space-y-8">
+      <div className="text-center space-y-3">
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto"
+        >
+          <span className="text-2xl font-display font-bold text-primary">O</span>
+        </motion.div>
+        <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">OMNISCOPE</h1>
+        <p className="text-sm text-muted-foreground">Elite DEX Intelligence</p>
       </div>
       <div className="grid gap-3">
-        <button
-          onClick={() => setMode('simple')}
-          className={`p-4 rounded-xl border-2 text-left transition-all ${
-            mode === 'simple'
-              ? 'border-primary bg-primary/10'
-              : 'border-border bg-card hover:border-muted-foreground/30'
-          }`}
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <Eye className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-foreground">Mode Simple</span>
-            <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Recommandé</Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">Signaux clairs, interface épurée. Idéal pour débuter.</p>
-        </button>
-        <button
-          onClick={() => setMode('pro')}
-          className={`p-4 rounded-xl border-2 text-left transition-all ${
-            mode === 'pro'
-              ? 'border-primary bg-primary/10'
-              : 'border-border bg-card hover:border-muted-foreground/30'
-          }`}
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <Gauge className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-foreground">Mode Pro</span>
-          </div>
-          <p className="text-xs text-muted-foreground">Toutes les données, indicateurs techniques, risk scanner détaillé.</p>
-        </button>
+        {([
+          { id: 'simple' as UserMode, label: 'Simple', desc: 'Clean signals, intuitive interface. Perfect to start.', icon: Eye, badge: 'Recommended' },
+          { id: 'pro' as UserMode, label: 'Pro', desc: 'All data, technical indicators, detailed risk scanner.', icon: Gauge, badge: null },
+        ]).map(m => (
+          <motion.button
+            key={m.id}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setMode(m.id)}
+            className={`p-4 rounded-xl border text-left transition-all ${
+              mode === m.id
+                ? 'border-primary/50 bg-primary/5 glow-primary'
+                : 'border-border bg-card hover:border-border/80'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-1.5">
+              <m.icon className={`w-5 h-5 ${mode === m.id ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="font-semibold text-foreground">{m.label}</span>
+              {m.badge && (
+                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-mono">{m.badge}</Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground ml-8">{m.desc}</p>
+          </motion.button>
+        ))}
       </div>
     </div>,
 
     // Step 2: Risk
-    <div key="risk" className="space-y-6">
+    <div key="risk" className="space-y-8">
       <div className="text-center space-y-2">
-        <Shield className="w-10 h-10 text-primary mx-auto" />
-        <h2 className="text-xl font-bold text-foreground">Quel risque ?</h2>
-        <p className="text-sm text-muted-foreground">Filtre les signaux selon ton profil</p>
+        <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+          <Shield className="w-6 h-6 text-primary" />
+        </div>
+        <h2 className="text-xl font-display font-bold text-foreground">Risk Profile</h2>
+        <p className="text-sm text-muted-foreground">Filters signals based on your tolerance</p>
       </div>
       <div className="grid gap-3">
         {([
-          { id: 'conservative' as RiskProfile, label: 'Conservateur', desc: 'Signaux haute confiance uniquement. Tokens établis, risque faible.', icon: Shield, color: 'text-success' },
-          { id: 'standard' as RiskProfile, label: 'Standard', desc: 'Bon équilibre risque/reward. Signaux moyens à forts.', icon: Zap, color: 'text-primary' },
-          { id: 'aggressive' as RiskProfile, label: 'Agressif', desc: 'Tous les signaux, y compris les plus risqués. Pour traders expérimentés.', icon: TrendingUp, color: 'text-warning' },
+          { id: 'conservative' as RiskProfile, label: 'Conservative', desc: 'High confidence only. Established tokens, low risk.', icon: Shield, color: 'text-success' },
+          { id: 'standard' as RiskProfile, label: 'Standard', desc: 'Balanced risk/reward. Medium to high confidence signals.', icon: Zap, color: 'text-primary' },
+          { id: 'aggressive' as RiskProfile, label: 'Aggressive', desc: 'All signals including high risk. For experienced traders.', icon: TrendingUp, color: 'text-warning' },
         ]).map(r => (
-          <button
+          <motion.button
             key={r.id}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setRisk(r.id)}
-            className={`p-4 rounded-xl border-2 text-left transition-all ${
+            className={`p-4 rounded-xl border text-left transition-all ${
               risk === r.id
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-card hover:border-muted-foreground/30'
+                ? 'border-primary/50 bg-primary/5 glow-primary'
+                : 'border-border bg-card hover:border-border/80'
             }`}
           >
             <div className="flex items-center gap-3 mb-1">
               <r.icon className={`w-5 h-5 ${r.color}`} />
               <span className="font-semibold text-foreground">{r.label}</span>
             </div>
-            <p className="text-xs text-muted-foreground">{r.desc}</p>
-          </button>
+            <p className="text-xs text-muted-foreground ml-8">{r.desc}</p>
+          </motion.button>
         ))}
       </div>
     </div>,
 
     // Step 3: Chains
-    <div key="chains" className="space-y-6">
+    <div key="chains" className="space-y-8">
       <div className="text-center space-y-2">
-        <BarChart3 className="w-10 h-10 text-primary mx-auto" />
-        <h2 className="text-xl font-bold text-foreground">Tes chaînes</h2>
-        <p className="text-sm text-muted-foreground">Active les blockchains que tu veux suivre</p>
+        <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+          <BarChart3 className="w-6 h-6 text-primary" />
+        </div>
+        <h2 className="text-xl font-display font-bold text-foreground">Chains</h2>
+        <p className="text-sm text-muted-foreground">Select blockchains to monitor</p>
       </div>
-      <div className="grid gap-3">
+      <div className="grid gap-2.5">
         {chains.map(c => (
-          <button
+          <motion.button
             key={c.id}
+            whileTap={{ scale: 0.98 }}
             onClick={() => toggleChain(c.id)}
-            className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${
+            className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
               selectedChains.includes(c.id)
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-card hover:border-muted-foreground/30'
+                ? 'border-primary/50 bg-primary/5'
+                : 'border-border bg-card hover:border-border/80'
             }`}
           >
-            <span className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center font-bold text-foreground text-sm">
+            <span className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center font-bold text-foreground text-sm font-mono">
               {c.icon}
             </span>
-            <span className="font-semibold text-foreground">{c.label}</span>
-            {selectedChains.includes(c.id) && (
-              <span className="ml-auto w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground text-xs">✓</span>
-              </span>
-            )}
-          </button>
+            <span className="font-medium text-foreground text-sm">{c.label}</span>
+            <span className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              selectedChains.includes(c.id)
+                ? 'border-primary bg-primary'
+                : 'border-muted-foreground/30'
+            }`}>
+              {selectedChains.includes(c.id) && <span className="text-primary-foreground text-[10px]">✓</span>}
+            </span>
+          </motion.button>
         ))}
       </div>
     </div>,
 
     // Step 4: Alerts
-    <div key="alerts" className="space-y-6">
+    <div key="alerts" className="space-y-8">
       <div className="text-center space-y-2">
-        <Bell className="w-10 h-10 text-primary mx-auto" />
-        <h2 className="text-xl font-bold text-foreground">Tes alertes</h2>
-        <p className="text-sm text-muted-foreground">Choisis quand être notifié</p>
+        <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+          <Bell className="w-6 h-6 text-primary" />
+        </div>
+        <h2 className="text-xl font-display font-bold text-foreground">Alerts</h2>
+        <p className="text-sm text-muted-foreground">Choose what triggers notifications</p>
       </div>
-      <div className="grid gap-3">
+      <div className="grid gap-2.5">
         {([
-          { id: 'price', label: 'Prix', desc: 'Alerte quand un prix dépasse un seuil', icon: TrendingUp },
-          { id: 'volume', label: 'Volume', desc: 'Spike de volume ou transactions inhabituelles', icon: BarChart3 },
-          { id: 'signal', label: 'Signaux', desc: 'Nouveaux signaux Entry/Exit/Avoid', icon: Zap },
-          { id: 'risk', label: 'Risque', desc: 'Changement de score de risque', icon: ShieldAlert },
+          { id: 'price', label: 'Price', desc: 'Alert when price crosses a threshold', icon: TrendingUp },
+          { id: 'volume', label: 'Volume', desc: 'Volume spikes or unusual transactions', icon: BarChart3 },
+          { id: 'signal', label: 'Signals', desc: 'New Entry / Exit / Avoid signals', icon: Zap },
+          { id: 'risk', label: 'Risk', desc: 'Risk score changes', icon: ShieldAlert },
         ]).map(a => (
-          <button
+          <motion.button
             key={a.id}
+            whileTap={{ scale: 0.98 }}
             onClick={() => toggleAlert(a.id)}
-            className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${
+            className={`p-3.5 rounded-xl border text-left transition-all flex items-center gap-3 ${
               alertTypes.includes(a.id)
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-card hover:border-muted-foreground/30'
+                ? 'border-primary/50 bg-primary/5'
+                : 'border-border bg-card hover:border-border/80'
             }`}
           >
-            <a.icon className="w-5 h-5 text-primary flex-shrink-0" />
-            <div>
-              <span className="font-semibold text-foreground text-sm">{a.label}</span>
-              <p className="text-xs text-muted-foreground">{a.desc}</p>
+            <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
+              <a.icon className={`w-4 h-4 ${alertTypes.includes(a.id) ? 'text-primary' : 'text-muted-foreground'}`} />
             </div>
-            {alertTypes.includes(a.id) && (
-              <span className="ml-auto w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <span className="text-primary-foreground text-xs">✓</span>
-              </span>
-            )}
-          </button>
+            <div className="flex-1">
+              <span className="font-medium text-foreground text-sm">{a.label}</span>
+              <p className="text-[11px] text-muted-foreground">{a.desc}</p>
+            </div>
+            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              alertTypes.includes(a.id)
+                ? 'border-primary bg-primary'
+                : 'border-muted-foreground/30'
+            }`}>
+              {alertTypes.includes(a.id) && <span className="text-primary-foreground text-[10px]">✓</span>}
+            </span>
+          </motion.button>
         ))}
       </div>
     </div>,
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background gradient-hero flex flex-col">
       {/* Progress */}
       <div className="px-6 pt-6 pb-2">
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           {[0, 1, 2, 3].map(i => (
-            <div
+            <motion.div
               key={i}
-              className={`h-1 rounded-full flex-1 transition-all ${
-                i <= step ? 'bg-primary' : 'bg-muted'
-              }`}
+              className="h-1 rounded-full flex-1"
+              animate={{
+                backgroundColor: i <= step ? 'hsl(160, 100%, 45%)' : 'hsl(225, 16%, 11%)',
+              }}
+              transition={{ duration: 0.3 }}
             />
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          Étape {step + 1} / 4
+        <p className="text-[11px] text-muted-foreground mt-2 text-center font-mono">
+          {step + 1} / 4
         </p>
       </div>
 
       {/* Content */}
       <div className="flex-1 px-6 py-4 max-w-md mx-auto w-full">
-        {steps[step]}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+            {steps[step]}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Navigation */}
@@ -224,25 +260,28 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         {step > 0 && (
           <Button
             variant="outline"
-            className="flex-1"
+            className="flex-1 border-border/50"
             onClick={() => setStep(s => s - 1)}
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
-            Retour
+            Back
           </Button>
         )}
         {step < 3 ? (
           <Button
-            className="flex-1"
+            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => setStep(s => s + 1)}
           >
-            Suivant
+            Continue
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         ) : (
-          <Button className="flex-1" onClick={finish}>
+          <Button
+            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 glow-primary"
+            onClick={finish}
+          >
             <Zap className="w-4 h-4 mr-1" />
-            C'est parti !
+            Launch OMNISCOPE
           </Button>
         )}
       </div>
