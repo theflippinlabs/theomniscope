@@ -5,8 +5,9 @@ import type { UserPreferences } from '@/lib/userPreferences';
 import type { Chain } from '@/lib/types';
 import {
   User, Eye, Gauge, Shield, Zap, TrendingUp,
-  RotateCcw, Settings
+  RotateCcw, Settings, Sun, Moon
 } from 'lucide-react';
+import type { ThemeMode } from '@/lib/userPreferences';
 
 interface ProfileProps {
   prefs: UserPreferences;
@@ -34,10 +35,39 @@ export default function Profile({ prefs, onUpdatePrefs }: ProfileProps) {
       </header>
 
       <main className="px-4 py-4 space-y-4 max-w-lg mx-auto">
+        {/* Theme toggle */}
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="gradient-card rounded-xl p-4"
+        >
+          <h3 className="text-xs font-display font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Apparence</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { id: 'light' as const, label: 'Clair', icon: Sun },
+              { id: 'dark' as const, label: 'Sombre', icon: Moon },
+            ] as { id: ThemeMode; label: string; icon: typeof Sun }[]).map(t => (
+              <button
+                key={t.id}
+                onClick={() => onUpdatePrefs({ theme: t.id })}
+                className={`p-3 rounded-lg border text-center transition-all ${
+                  prefs.theme === t.id
+                    ? 'border-primary/40 bg-primary/5'
+                    : 'border-border/50 bg-secondary/30 hover:border-border'
+                }`}
+              >
+                <t.icon className={`w-5 h-5 mx-auto mb-1 ${prefs.theme === t.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className="text-xs font-medium text-foreground">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </motion.section>
+
         {/* Mode toggle */}
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.03 }}
           className="gradient-card rounded-xl p-4"
         >
           <h3 className="text-xs font-display font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Display Mode</h3>
