@@ -1,10 +1,11 @@
+import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { UserPreferences } from '@/lib/userPreferences';
 import type { Chain } from '@/lib/types';
 import {
   User, Eye, Gauge, Shield, Zap, TrendingUp,
-  RotateCcw, ChevronRight
+  RotateCcw, Settings
 } from 'lucide-react';
 
 interface ProfileProps {
@@ -13,7 +14,8 @@ interface ProfileProps {
 }
 
 export default function Profile({ prefs, onUpdatePrefs }: ProfileProps) {
-  const riskLabels = { conservative: 'Conservateur', standard: 'Standard', aggressive: 'Agressif' };
+  const riskLabels = { conservative: 'Conservative', standard: 'Standard', aggressive: 'Aggressive' };
+  const riskIcons = { conservative: Shield, standard: Zap, aggressive: TrendingUp };
   const chainLabels: Record<Chain, string> = {
     ethereum: 'Ethereum',
     bsc: 'BNB Chain',
@@ -24,67 +26,80 @@ export default function Profile({ prefs, onUpdatePrefs }: ProfileProps) {
 
   return (
     <div>
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
-        <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <User className="w-5 h-5 text-primary" />
-          Profil & Préférences
-        </h1>
+      <header className="sticky top-0 z-40 glass-strong border-b border-border/50 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Settings className="w-4 h-4 text-primary" />
+          <h1 className="text-base font-display font-bold text-foreground tracking-tight">Settings</h1>
+        </div>
       </header>
 
-      <main className="px-4 py-4 space-y-6 max-w-lg mx-auto">
+      <main className="px-4 py-4 space-y-4 max-w-lg mx-auto">
         {/* Mode toggle */}
-        <section className="gradient-card rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Mode d'affichage</h3>
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="gradient-card rounded-xl p-4"
+        >
+          <h3 className="text-xs font-display font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Display Mode</h3>
           <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => onUpdatePrefs({ mode: 'simple' })}
-              className={`p-3 rounded-lg border-2 text-center transition-all ${
-                prefs.mode === 'simple'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-card'
-              }`}
-            >
-              <Eye className="w-5 h-5 mx-auto text-primary mb-1" />
-              <span className="text-xs font-semibold text-foreground">Simple</span>
-            </button>
-            <button
-              onClick={() => onUpdatePrefs({ mode: 'pro' })}
-              className={`p-3 rounded-lg border-2 text-center transition-all ${
-                prefs.mode === 'pro'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-card'
-              }`}
-            >
-              <Gauge className="w-5 h-5 mx-auto text-primary mb-1" />
-              <span className="text-xs font-semibold text-foreground">Pro</span>
-            </button>
-          </div>
-        </section>
-
-        {/* Risk profile */}
-        <section className="gradient-card rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Profil de risque</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {(['conservative', 'standard', 'aggressive'] as const).map(r => (
+            {([
+              { id: 'simple' as const, label: 'Simple', icon: Eye },
+              { id: 'pro' as const, label: 'Pro', icon: Gauge },
+            ]).map(m => (
               <button
-                key={r}
-                onClick={() => onUpdatePrefs({ riskProfile: r })}
-                className={`p-3 rounded-lg border-2 text-center transition-all ${
-                  prefs.riskProfile === r
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border bg-card'
+                key={m.id}
+                onClick={() => onUpdatePrefs({ mode: m.id })}
+                className={`p-3 rounded-lg border text-center transition-all ${
+                  prefs.mode === m.id
+                    ? 'border-primary/40 bg-primary/5'
+                    : 'border-border/50 bg-secondary/30 hover:border-border'
                 }`}
               >
-                <span className="text-xs font-semibold text-foreground">{riskLabels[r]}</span>
+                <m.icon className={`w-5 h-5 mx-auto mb-1 ${prefs.mode === m.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className="text-xs font-medium text-foreground">{m.label}</span>
               </button>
             ))}
           </div>
-        </section>
+        </motion.section>
+
+        {/* Risk profile */}
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="gradient-card rounded-xl p-4"
+        >
+          <h3 className="text-xs font-display font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Risk Profile</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {(['conservative', 'standard', 'aggressive'] as const).map(r => {
+              const RIcon = riskIcons[r];
+              return (
+                <button
+                  key={r}
+                  onClick={() => onUpdatePrefs({ riskProfile: r })}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    prefs.riskProfile === r
+                      ? 'border-primary/40 bg-primary/5'
+                      : 'border-border/50 bg-secondary/30 hover:border-border'
+                  }`}
+                >
+                  <RIcon className={`w-4 h-4 mx-auto mb-1 ${prefs.riskProfile === r ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="text-[10px] font-medium text-foreground">{riskLabels[r]}</span>
+                </button>
+              );
+            })}
+          </div>
+        </motion.section>
 
         {/* Chains */}
-        <section className="gradient-card rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Chaînes actives</h3>
-          <div className="space-y-2">
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="gradient-card rounded-xl p-4"
+        >
+          <h3 className="text-xs font-display font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Active Chains</h3>
+          <div className="space-y-1.5">
             {(['ethereum', 'bsc', 'polygon', 'arbitrum', 'base'] as Chain[]).map(c => (
               <button
                 key={c}
@@ -96,39 +111,44 @@ export default function Profile({ prefs, onUpdatePrefs }: ProfileProps) {
                 }}
                 className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
                   prefs.chains.includes(c)
-                    ? 'border-primary/50 bg-primary/5'
-                    : 'border-border bg-card'
+                    ? 'border-primary/30 bg-primary/3'
+                    : 'border-border/50 bg-secondary/30'
                 }`}
               >
                 <span className="text-sm text-foreground">{chainLabels[c]}</span>
-                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
                   prefs.chains.includes(c)
                     ? 'border-primary bg-primary'
-                    : 'border-muted-foreground'
+                    : 'border-muted-foreground/30'
                 }`}>
-                  {prefs.chains.includes(c) && <span className="text-primary-foreground text-[10px]">✓</span>}
+                  {prefs.chains.includes(c) && <span className="text-primary-foreground text-[8px]">✓</span>}
                 </span>
               </button>
             ))}
           </div>
-        </section>
+        </motion.section>
 
-        {/* Reset onboarding */}
-        <section className="gradient-card rounded-xl p-4">
+        {/* Reset */}
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="gradient-card rounded-xl p-4"
+        >
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full border-border/50 text-muted-foreground hover:text-foreground"
             onClick={() => onUpdatePrefs({ onboardingComplete: false })}
           >
             <RotateCcw className="w-4 h-4 mr-2" />
-            Refaire l'onboarding
+            Reset Onboarding
           </Button>
-        </section>
+        </motion.section>
 
-        {/* Info */}
-        <div className="text-center text-xs text-muted-foreground pb-8">
-          <p>OmniDEX Tracker v1.0</p>
-          <p className="mt-1">Information only, not financial advice.</p>
+        {/* Footer */}
+        <div className="text-center text-[10px] text-muted-foreground/40 pb-8 space-y-0.5 font-mono">
+          <p>OMNISCOPE v1.0</p>
+          <p>Information only — not financial advice</p>
         </div>
       </main>
     </div>

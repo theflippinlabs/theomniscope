@@ -8,7 +8,7 @@ interface AppShellProps {
 
 export function AppShell({ unreadAlerts }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background gradient-hero">
       <Disclaimer />
       <div className="pb-20">
         <Outlet />
