@@ -7,6 +7,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Lock, Loader2 } from 'lucide-react';
 
+type Lang = 'fr' | 'en';
+
+const translations = {
+  fr: {
+    subtitle: 'Accès sur invitation uniquement',
+    placeholder: "Entrez votre code d'invitation",
+    submit: 'Accéder',
+    invalidCode: 'Code invalide.',
+    alreadyUsed: 'Ce code a déjà été utilisé.',
+    error: 'Erreur, réessayez.',
+  },
+  en: {
+    subtitle: 'Invitation only access',
+    placeholder: 'Enter your invitation code',
+    submit: 'Access',
+    invalidCode: 'Invalid code.',
+    alreadyUsed: 'This code has already been used.',
+    error: 'Error, please try again.',
+  },
+} as const;
+
 function getDeviceId(): string {
   let id = localStorage.getItem('oracle_device_id');
   if (!id) {
@@ -20,7 +41,18 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<Lang>(() => {
+    return (localStorage.getItem('oracle_lang') as Lang) || 'en';
+  });
   const navigate = useNavigate();
+  const t = translations[lang];
+
+  const toggleLang = () => {
+    const next = lang === 'fr' ? 'en' : 'fr';
+    setLang(next);
+    localStorage.setItem('oracle_lang', next);
+    setError('');
+  };
 
   // Check if this device already has access
   useEffect(() => {
@@ -48,7 +80,6 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
     const deviceId = getDeviceId();
     const trimmed = code.trim().toUpperCase();
 
-    // Check if code exists and is not used OR already used by this device
     const { data } = await supabase
       .from('invitation_codes')
       .select('*')
@@ -56,34 +87,31 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
       .limit(1);
 
     if (!data || data.length === 0) {
-      setError('Code invalide.');
+      setError(t.invalidCode);
       setLoading(false);
       return;
     }
 
     const invitation = data[0];
 
-    // Already used by this device → grant access
     if (invitation.is_used && invitation.device_id === deviceId) {
       onGranted();
       return;
     }
 
-    // Already used by another device
     if (invitation.is_used && invitation.device_id !== deviceId) {
-      setError('Ce code a déjà été utilisé.');
+      setError(t.alreadyUsed);
       setLoading(false);
       return;
     }
 
-    // Not used yet → claim it
     const { error: updateError } = await supabase
       .from('invitation_codes')
       .update({ is_used: true, device_id: deviceId, used_at: new Date().toISOString() })
       .eq('id', invitation.id);
 
     if (updateError) {
-      setError('Erreur, réessayez.');
+      setError(t.error);
       setLoading(false);
       return;
     }
@@ -100,7 +128,17 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
   }
 
   return (
-    <div className="min-h-screen bg-background gradient-hero flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-background gradient-hero flex flex-col items-center justify-center px-6 relative">
+      {/* Language toggle */}
+      <button
+        onClick={toggleLang}
+        className="absolute top-6 right-6 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors bg-muted/50 backdrop-blur-sm rounded-full px-3 py-1.5 border border-border/50"
+      >
+        <span className={lang === 'en' ? 'text-foreground font-semibold' : ''}>EN</span>
+        <span className="text-muted-foreground/40">|</span>
+        <span className={lang === 'fr' ? 'text-foreground font-semibold' : ''}>FR</span>
+      </button>
+
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -110,14 +148,14 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
         <div className="space-y-4">
           <img src={oracleLogo} alt="Oracle" className="w-64 h-64 mx-auto object-contain" />
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">ORACLE</h1>
-          <p className="text-sm text-muted-foreground">Accès sur invitation uniquement</p>
+          <p className="text-sm text-muted-foreground">{t.subtitle}</p>
         </div>
 
         <div className="space-y-3">
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Entrez votre code d'invitation"
+              placeholder={t.placeholder}
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
@@ -141,7 +179,7 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
             onClick={handleSubmit}
             disabled={!code.trim()}
           >
-            Accéder
+            {t.submit}
           </Button>
         </div>
 
