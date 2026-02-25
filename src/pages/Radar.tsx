@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMarketData } from '@/hooks/useMarketData';
@@ -161,55 +162,82 @@ export default function Radar({ prefs }: RadarProps) {
       </header>
 
       <main className="px-4 py-4 space-y-6">
-        {/* Top Gainers */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-success" />
-            <h2 className="text-sm font-display font-semibold text-foreground">{t('radar.topGainers')}</h2>
-            <span className="text-[10px] text-muted-foreground font-mono ml-auto">1h</span>
-          </div>
-          <TokenCarousel tokens={topGainers} variant="success" />
-        </section>
+      <Accordion type="multiple" className="space-y-2">
+          {/* Top Gainers */}
+          <AccordionItem value="gainers" className="border rounded-xl border-success/20 bg-card/50 backdrop-blur-sm px-3">
+            <AccordionTrigger className="py-3 hover:no-underline">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-success" />
+                <span className="text-sm font-display font-semibold text-foreground">{t('radar.topGainers')}</span>
+                <span className="text-[10px] text-muted-foreground font-mono">1h</span>
+                <Badge variant="outline" className="text-[9px] border-success/20 text-success ml-1">{topGainers.length}</Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <TokenCarousel tokens={topGainers} variant="success" />
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Top Losers */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingDown className="w-4 h-4 text-danger" />
-            <h2 className="text-sm font-display font-semibold text-foreground">{t('radar.topLosers')}</h2>
-            <span className="text-[10px] text-muted-foreground font-mono ml-auto">1h</span>
-          </div>
-          <TokenCarousel tokens={topLosers} variant="danger" />
-        </section>
+          {/* Top Losers */}
+          <AccordionItem value="losers" className="border rounded-xl border-danger/20 bg-card/50 backdrop-blur-sm px-3">
+            <AccordionTrigger className="py-3 hover:no-underline">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-danger" />
+                <span className="text-sm font-display font-semibold text-foreground">{t('radar.topLosers')}</span>
+                <span className="text-[10px] text-muted-foreground font-mono">1h</span>
+                <Badge variant="outline" className="text-[9px] border-danger/20 text-danger ml-1">{topLosers.length}</Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <TokenCarousel tokens={topLosers} variant="danger" />
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Top Volume */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <BarChart3 className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-display font-semibold text-foreground">{t('radar.topVolume')}</h2>
-            <span className="text-[10px] text-muted-foreground font-mono ml-auto">24h</span>
-          </div>
-          <TokenCarousel tokens={topVolume} variant="default" />
-        </section>
+          {/* Top Volume */}
+          <AccordionItem value="volume" className="border rounded-xl border-primary/20 bg-card/50 backdrop-blur-sm px-3">
+            <AccordionTrigger className="py-3 hover:no-underline">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                <span className="text-sm font-display font-semibold text-foreground">{t('radar.topVolume')}</span>
+                <span className="text-[10px] text-muted-foreground font-mono">24h</span>
+                <Badge variant="outline" className="text-[9px] border-primary/20 text-primary ml-1">{topVolume.length}</Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <TokenCarousel tokens={topVolume} variant="default" />
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* New Listings */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Flame className="w-4 h-4 text-warning" />
-            <h2 className="text-sm font-display font-semibold text-foreground">{t('radar.newListings')}</h2>
-          </div>
-          <TokenCarousel tokens={newTokens} variant="default" />
-        </section>
+          {/* New Listings */}
+          <AccordionItem value="new" className="border rounded-xl border-warning/20 bg-card/50 backdrop-blur-sm px-3">
+            <AccordionTrigger className="py-3 hover:no-underline">
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-warning" />
+                <span className="text-sm font-display font-semibold text-foreground">{t('radar.newListings')}</span>
+                <Badge variant="outline" className="text-[9px] border-warning/20 text-warning ml-1">{newTokens.length}</Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <TokenCarousel tokens={newTokens} variant="default" />
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Danger Zone */}
-        {highRisk.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldAlert className="w-4 h-4 text-danger" />
-              <h2 className="text-sm font-display font-semibold text-foreground">{t('radar.dangerZone')}</h2>
-            </div>
-            <TokenCarousel tokens={highRisk} variant="danger" />
-          </section>
-        )}
+          {/* Danger Zone */}
+          {highRisk.length > 0 && (
+            <AccordionItem value="danger" className="border rounded-xl border-danger/20 bg-card/50 backdrop-blur-sm px-3">
+              <AccordionTrigger className="py-3 hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-danger" />
+                  <span className="text-sm font-display font-semibold text-foreground">{t('radar.dangerZone')}</span>
+                  <Badge variant="outline" className="text-[9px] border-danger/20 text-danger ml-1">{highRisk.length}</Badge>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <TokenCarousel tokens={highRisk} variant="danger" />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
 
         {/* All Tokens with sort + filters */}
         <section>
