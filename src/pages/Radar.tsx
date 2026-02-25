@@ -58,10 +58,10 @@ export default function Radar({ prefs }: RadarProps) {
 
   const sorted = useMemo(() => [...filtered].sort(sortFns[sortKey]), [filtered, sortKey]);
 
-  const topGainers = useMemo(() => [...filtered].sort((a, b) => b.priceChange1h - a.priceChange1h).slice(0, 6), [filtered]);
-  const topLosers = useMemo(() => [...filtered].sort((a, b) => a.priceChange1h - b.priceChange1h).slice(0, 6), [filtered]);
-  const topVolume = useMemo(() => [...filtered].sort((a, b) => b.volume24h - a.volume24h).slice(0, 5), [filtered]);
-  const newTokens = useMemo(() => [...filtered].sort((a, b) => a.ageHours - b.ageHours).slice(0, 5), [filtered]);
+  const topGainers = useMemo(() => [...filtered].sort((a, b) => b.priceChange1h - a.priceChange1h).slice(0, 15), [filtered]);
+  const topLosers = useMemo(() => [...filtered].sort((a, b) => a.priceChange1h - b.priceChange1h).slice(0, 15), [filtered]);
+  const topVolume = useMemo(() => [...filtered].sort((a, b) => b.volume24h - a.volume24h).slice(0, 10), [filtered]);
+  const newTokens = useMemo(() => [...filtered].sort((a, b) => a.ageHours - b.ageHours).slice(0, 10), [filtered]);
   const highRisk = useMemo(() => filtered.filter(tk => {
     const r = risks.get(tk.id);
     return r && r.score >= 50;

@@ -10,7 +10,7 @@ interface TokenCarouselProps {
 }
 
 export function TokenCarousel({ tokens, variant }: TokenCarouselProps) {
-  const [emblaRef] = useEmblaCarousel({ align: 'start', dragFree: true, containScroll: 'trimSnaps' });
+  const [emblaRef] = useEmblaCarousel({ align: 'start', dragFree: true, loop: false, skipSnaps: true });
   const navigate = useNavigate();
 
   const changeColor = variant === 'success' ? 'text-success' : variant === 'danger' ? 'text-danger' : 'text-foreground';
