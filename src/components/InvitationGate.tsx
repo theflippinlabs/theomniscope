@@ -106,7 +106,7 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
         className="w-full max-w-sm space-y-8 text-center"
       >
         <div className="space-y-4">
-          <img src={oracleLogo} alt="Oracle" className="w-32 h-32 mx-auto object-contain" />
+          <img src={oracleLogo} alt="Oracle" className="w-48 h-48 mx-auto object-contain" />
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">ORACLE</h1>
           <p className="text-sm text-muted-foreground">Accès sur invitation uniquement</p>
         </div>
