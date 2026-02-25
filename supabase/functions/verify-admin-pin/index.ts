@@ -11,19 +11,24 @@ serve(async (req) => {
   }
 
   try {
-    const { pin } = await req.json();
-    const adminPin = Deno.env.get("ADMIN_PIN");
+    const { email, password } = await req.json();
+    const adminEmail = Deno.env.get("ADMIN_EMAIL");
+    const adminPassword = Deno.env.get("ADMIN_PASSWORD");
 
-    if (!adminPin) {
-      return new Response(JSON.stringify({ valid: false, error: "ADMIN_PIN not configured" }), {
+    if (!adminEmail || !adminPassword) {
+      return new Response(JSON.stringify({ valid: false, error: "Admin credentials not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const submittedPin = String(pin ?? "").trim();
-    const expectedPin = adminPin.trim();
-    const valid = submittedPin.length > 0 && submittedPin === expectedPin;
+    const submittedEmail = String(email ?? "").trim().toLowerCase();
+    const submittedPassword = String(password ?? "").trim();
+    const expectedEmail = adminEmail.trim().toLowerCase();
+    const expectedPassword = adminPassword.trim();
+
+    const valid = submittedEmail.length > 0 && submittedPassword.length > 0 &&
+      submittedEmail === expectedEmail && submittedPassword === expectedPassword;
 
     return new Response(JSON.stringify({ valid }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

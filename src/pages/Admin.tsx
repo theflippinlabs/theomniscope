@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { Lock, Plus, Copy, Check, Trash2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Plus, Copy, Check, Trash2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 
@@ -17,23 +17,23 @@ function generateCode(): string {
 }
 
 export default function Admin() {
-  const [pin, setPin] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
-  const [pinError, setPinError] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [codes, setCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { t } = useI18n();
 
-  const verifyPin = async () => {
-    setPinError('');
-    const normalizedPin = pin.trim();
+  const verifyCredentials = async () => {
+    setLoginError('');
     const { data, error } = await supabase.functions.invoke('verify-admin-pin', {
-      body: { pin: normalizedPin },
+      body: { email: email.trim(), password: password.trim() },
     });
     if (error || !data?.valid) {
-      setPinError(t('admin.pinError'));
+      setLoginError(t('admin.loginError'));
       return;
     }
     setAuthenticated(true);
@@ -90,22 +90,36 @@ export default function Admin() {
           <h1 className="text-xl font-display font-bold text-foreground">{t('admin.title')}</h1>
           <div className="space-y-3">
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                type="password"
-                placeholder={t('admin.pinPlaceholder')}
-                value={pin}
-                onChange={e => setPin(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && verifyPin()}
-                autoComplete="one-time-code"
+                type="email"
+                placeholder={t('admin.emailPlaceholder')}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck={false}
-                className="pl-10 text-center font-mono"
+                className="pl-10"
               />
             </div>
-            {pinError && <p className="text-sm text-danger">{pinError}</p>}
-            <Button className="w-full" onClick={verifyPin} disabled={!pin}>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="password"
+                placeholder={t('admin.passwordPlaceholder')}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && verifyCredentials()}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="pl-10"
+              />
+            </div>
+            {loginError && <p className="text-sm text-danger">{loginError}</p>}
+            <Button className="w-full" onClick={verifyCredentials} disabled={!email || !password}>
               {t('admin.access')}
             </Button>
           </div>

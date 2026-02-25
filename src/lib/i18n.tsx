@@ -137,9 +137,10 @@ const translations = {
 
   // Admin
   'admin.title': { en: 'Admin ORACLE', fr: 'Admin ORACLE' },
-  'admin.pinPlaceholder': { en: 'Admin PIN', fr: 'PIN Admin' },
-  'admin.pinError': { en: 'Incorrect PIN', fr: 'PIN incorrect' },
-  'admin.access': { en: 'Access', fr: 'Accéder' },
+  'admin.emailPlaceholder': { en: 'Email', fr: 'Email' },
+  'admin.passwordPlaceholder': { en: 'Password', fr: 'Mot de passe' },
+  'admin.loginError': { en: 'Invalid email or password', fr: 'Email ou mot de passe incorrect' },
+  'admin.access': { en: 'Sign in', fr: 'Se connecter' },
   'admin.invitationCodes': { en: 'Invitation Codes', fr: "Codes d'invitation" },
   'admin.generate': { en: 'Generate a code', fr: 'Générer un code' },
   'admin.used': { en: 'Used', fr: 'Utilisé' },
