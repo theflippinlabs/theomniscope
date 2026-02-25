@@ -66,7 +66,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="w-24 h-24 mx-auto"
+          className="w-40 h-40 mx-auto"
         >
           <img src={oracleLogo} alt="Oracle by The Flippin' Labs" className="w-full h-full object-contain" />
         </motion.div>

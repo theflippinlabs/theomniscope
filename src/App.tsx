@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useUserPreferences } from "@/lib/userPreferences";
 import { useMarketData } from "@/hooks/useMarketData";
 import { AppShell } from "@/components/AppShell";
+import InvitationGate from "@/components/InvitationGate";
 import Onboarding from "@/pages/Onboarding";
 import Radar from "@/pages/Radar";
 import Opportunities from "@/pages/Opportunities";
@@ -14,6 +15,7 @@ import Watchlists from "@/pages/Watchlists";
 import AlertsPage from "@/pages/AlertsPage";
 import Profile from "@/pages/Profile";
 import TokenDetail from "@/pages/TokenDetail";
+import Admin from "@/pages/Admin";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,23 +23,36 @@ const queryClient = new QueryClient();
 function AppContent() {
   const { prefs, updatePrefs } = useUserPreferences();
   const { unreadAlerts } = useMarketData();
+  const [hasAccess, setHasAccess] = useState(false);
 
-  if (!prefs.onboardingComplete) {
-    return <Onboarding onComplete={updatePrefs} />;
-  }
-
+  // Admin route is always accessible (has its own PIN protection)
+  // Everything else requires an invitation code first
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<AppShell unreadAlerts={unreadAlerts} />}>
-          <Route path="/" element={<Radar prefs={prefs} />} />
-          <Route path="/opportunities" element={<Opportunities prefs={prefs} />} />
-          <Route path="/watchlists" element={<Watchlists />} />
-          <Route path="/alerts" element={<AlertsPage />} />
-          <Route path="/profile" element={<Profile prefs={prefs} onUpdatePrefs={updatePrefs} />} />
-        </Route>
-        <Route path="/token/:id" element={<TokenDetail />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route
+          path="*"
+          element={
+            !hasAccess ? (
+              <InvitationGate onGranted={() => setHasAccess(true)} />
+            ) : !prefs.onboardingComplete ? (
+              <Onboarding onComplete={updatePrefs} />
+            ) : (
+              <Routes>
+                <Route element={<AppShell unreadAlerts={unreadAlerts} />}>
+                  <Route path="/" element={<Radar prefs={prefs} />} />
+                  <Route path="/opportunities" element={<Opportunities prefs={prefs} />} />
+                  <Route path="/watchlists" element={<Watchlists />} />
+                  <Route path="/alerts" element={<AlertsPage />} />
+                  <Route path="/profile" element={<Profile prefs={prefs} onUpdatePrefs={updatePrefs} />} />
+                </Route>
+                <Route path="/token/:id" element={<TokenDetail />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            )
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
