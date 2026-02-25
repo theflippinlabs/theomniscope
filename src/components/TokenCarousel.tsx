@@ -1,6 +1,5 @@
 import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { formatPrice, formatPct } from '@/lib/formatters';
 import type { Token } from '@/lib/types';
 
@@ -14,26 +13,28 @@ export function TokenCarousel({ tokens, variant }: TokenCarouselProps) {
   const navigate = useNavigate();
 
   const changeColor = variant === 'success' ? 'text-success' : variant === 'danger' ? 'text-danger' : 'text-foreground';
+  const borderAccent = variant === 'success' ? 'border-success/15' : variant === 'danger' ? 'border-danger/15' : 'border-border/50';
 
   return (
-    <div className="overflow-hidden" ref={emblaRef}>
-      <div className="flex gap-2.5">
-        {tokens.map((tk, i) => (
-          <motion.button
+    <div className="overflow-hidden -mx-4 px-4" ref={emblaRef}>
+      <div className="flex gap-2">
+        {tokens.map((tk) => (
+          <button
             key={tk.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.04 }}
             onClick={() => navigate(`/token/${tk.id}`)}
-            className="gradient-card rounded-xl p-3 min-w-[130px] flex-shrink-0 text-left active:scale-95 transition-transform"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${borderAccent} bg-card/60 backdrop-blur-sm min-w-fit flex-shrink-0 active:scale-[0.97] transition-transform`}
           >
-            <div className="flex items-center gap-1">
-              <p className="font-bold text-foreground text-sm">{tk.symbol}</p>
-              <span className="text-[8px] text-muted-foreground uppercase">{tk.chain.slice(0, 3)}</span>
+            <div className="flex flex-col items-start">
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-foreground text-[11px]">{tk.symbol}</span>
+                <span className="text-[7px] text-muted-foreground uppercase px-1 py-0.5 rounded bg-secondary/60">{tk.chain.slice(0, 3)}</span>
+              </div>
             </div>
-            <p className="font-mono text-xs text-foreground mt-1 tabular-nums">{formatPrice(tk.price)}</p>
-            <p className={`font-mono text-xs mt-0.5 tabular-nums ${changeColor}`}>{formatPct(tk.priceChange1h)}</p>
-          </motion.button>
+            <div className="flex flex-col items-end">
+              <span className="font-mono text-[10px] text-foreground tabular-nums">{formatPrice(tk.price)}</span>
+              <span className={`font-mono text-[10px] tabular-nums font-semibold ${changeColor}`}>{formatPct(tk.priceChange1h)}</span>
+            </div>
+          </button>
         ))}
       </div>
     </div>
