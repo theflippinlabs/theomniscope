@@ -43,10 +43,10 @@ function HotCarousel({ tokens, formatAge, navigate }: { tokens: Token[]; formatA
 }
 
 type TimeFilter = 'all' | '1h' | '6h' | '24h' | '7d';
-type ChainFilter = 'all' | 'ethereum' | 'solana' | 'bsc' | 'arbitrum' | 'polygon' | 'base';
+type ChainFilter = 'all' | 'ethereum' | 'solana' | 'bsc' | 'arbitrum' | 'polygon' | 'base' | 'cronos';
 
 const chainLabels: Record<ChainFilter, string> = {
-  all: 'All', ethereum: 'ETH', solana: 'SOL', bsc: 'BSC', arbitrum: 'ARB', polygon: 'POLY', base: 'BASE',
+  all: 'All', ethereum: 'ETH', solana: 'SOL', bsc: 'BSC', arbitrum: 'ARB', polygon: 'POLY', base: 'BASE', cronos: 'CRO',
 };
 
 export default function NewListings() {

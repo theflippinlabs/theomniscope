@@ -23,9 +23,9 @@ interface RadarProps {
   prefs: UserPreferences;
 }
 
-type QuickFilter = 'all' | 'eth' | 'sol' | 'bsc' | 'arb' | 'poly' | 'base';
+type QuickFilter = 'all' | 'eth' | 'sol' | 'bsc' | 'arb' | 'poly' | 'base' | 'cro';
 const chainFilterMap: Record<QuickFilter, Chain | null> = {
-  all: null, eth: 'ethereum', sol: 'solana', bsc: 'bsc', arb: 'arbitrum', poly: 'polygon', base: 'base',
+  all: null, eth: 'ethereum', sol: 'solana', bsc: 'bsc', arb: 'arbitrum', poly: 'polygon', base: 'base', cro: 'cronos',
 };
 
 type SortKey = 'volume' | 'change1h' | 'change24h' | 'marketCap' | 'liquidity' | 'holders' | 'newest' | 'volatility';

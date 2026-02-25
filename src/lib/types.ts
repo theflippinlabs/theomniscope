@@ -1,5 +1,5 @@
-export type Chain = 'ethereum' | 'bsc' | 'arbitrum' | 'polygon' | 'base' | 'solana';
-export type DEX = 'uniswap_v2' | 'uniswap_v3' | 'pancakeswap' | 'sushiswap' | 'raydium' | 'jupiter' | 'orca';
+export type Chain = 'ethereum' | 'bsc' | 'arbitrum' | 'polygon' | 'base' | 'solana' | 'cronos';
+export type DEX = 'uniswap_v2' | 'uniswap_v3' | 'pancakeswap' | 'sushiswap' | 'raydium' | 'jupiter' | 'orca' | 'vvs_finance';
 export type SignalType = 'ENTRY' | 'EXIT' | 'HOLD' | 'AVOID';
 export type SignalStrategy = 'breakout' | 'reversal' | 'trend_follow';
 export type Confidence = 'low' | 'medium' | 'high';

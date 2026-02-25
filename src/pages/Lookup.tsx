@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { MiniChart } from '@/components/MiniChart';
 import { useI18n } from '@/lib/i18n';
+import { useMarketData } from '@/hooks/useMarketData';
 import { formatPrice, formatNumber, formatPct, shortenAddress } from '@/lib/formatters';
 import {
   Eye, Search, Copy, ExternalLink, Shield, ShieldAlert, ShieldCheck, Users,
@@ -52,16 +53,20 @@ function generateAddress(): string {
   return '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 }
 
-function simulateLookup(address: string): LookupResult {
-  const hash = address.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const symbols = ['PEPE2', 'DOGE3', 'MOON', 'APE', 'WOJAK2', 'SHIB2', 'FLOKI2', 'MEME2', 'BONK2', 'CAT'];
-  const names = ['Pepe 2.0', 'Doge 3.0', 'MoonCoin', 'ApeCoin', 'Wojak 2.0', 'Shib 2.0', 'Floki 2.0', 'MemeCoin 2', 'Bonk 2.0', 'CatCoin'];
-  const chains = ['ethereum', 'solana', 'bsc', 'base', 'arbitrum', 'polygon'];
-  const dexes = ['Uniswap V3', 'Raydium', 'PancakeSwap', 'Uniswap V2', 'Jupiter'];
-  const idx = hash % symbols.length;
-  const riskScore = randInt(10, 90);
-  const riskLevel = riskScore < 30 ? 'low' : riskScore < 50 ? 'medium' : riskScore < 70 ? 'high' : 'critical';
+function simulateLookup(query: string, marketTokens: any[]): LookupResult | null {
+  const q = query.trim().toLowerCase();
   
+  // Try to match existing token by address or symbol/name
+  const match = marketTokens.find(t => 
+    t.address.toLowerCase() === q || 
+    t.symbol.toLowerCase() === q ||
+    t.name.toLowerCase() === q
+  );
+
+  const hash = query.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
+  const riskScore = match ? randInt(10, 70) : randInt(30, 90);
+  const riskLevel = riskScore < 30 ? 'low' : riskScore < 50 ? 'medium' : riskScore < 70 ? 'high' : 'critical';
+
   const flags: { label: string; severity: string }[] = [];
   if (riskScore > 60) flags.push({ label: 'High holder concentration', severity: 'danger' });
   if (riskScore > 40) flags.push({ label: 'Low liquidity ratio', severity: 'warning' });
@@ -69,8 +74,49 @@ function simulateLookup(address: string): LookupResult {
   if (riskScore > 30) flags.push({ label: 'Unverified contract', severity: 'info' });
   if (riskScore > 50) flags.push({ label: 'Deployer has rugpull history', severity: 'danger' });
 
+  if (match) {
+    return {
+      address: match.address,
+      symbol: match.symbol,
+      name: match.name,
+      chain: match.chain,
+      dex: match.dex,
+      price: match.price,
+      priceChange1h: match.priceChange1h,
+      priceChange24h: match.priceChange24h,
+      volume24h: match.volume24h,
+      liquidity: match.liquidity,
+      marketCap: match.marketCap,
+      holders: match.holders,
+      txCount24h: match.txCount24h,
+      buyCount: match.buyCount,
+      sellCount: match.sellCount,
+      ageHours: match.ageHours,
+      riskScore,
+      riskLevel,
+      riskFlags: flags,
+      topHolderPct: rand(5, 40),
+      isRenounced: Math.random() > 0.4,
+      isHoneypot: false,
+      buyTax: rand(0, 5),
+      sellTax: rand(0, 8),
+      lpLocked: Math.random() > 0.2,
+      lpLockDays: randInt(30, 365),
+      deployer: generateAddress(),
+      deployerProjects: randInt(1, 20),
+      deployerRugs: riskScore > 50 ? randInt(1, 3) : 0,
+    };
+  }
+
+  // Fallback: generate from address hash for unknown tokens
+  const symbols = ['UNKNOWN', 'NEW', 'MICRO', 'ANON', 'X'];
+  const names = ['Unknown Token', 'New Token', 'MicroCap', 'Anon Token', 'Token X'];
+  const chains = ['ethereum', 'solana', 'bsc', 'base', 'arbitrum', 'polygon', 'cronos'];
+  const dexes = ['Uniswap V3', 'Raydium', 'PancakeSwap', 'Uniswap V2', 'Jupiter'];
+  const idx = hash % symbols.length;
+
   return {
-    address,
+    address: query,
     symbol: symbols[idx],
     name: names[idx],
     chain: chains[hash % chains.length],
@@ -138,14 +184,15 @@ export default function Lookup() {
   const [result, setResult] = useState<LookupResult | null>(null);
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
+  const { tokens } = useMarketData();
 
   const handleSearch = () => {
-    if (!address.trim() || address.trim().length < 10) return;
+    const q = address.trim();
+    if (!q || q.length < 2) return;
     setLoading(true);
     setResult(null);
-    // Simulate API delay
     setTimeout(() => {
-      setResult(simulateLookup(address.trim()));
+      setResult(simulateLookup(q, tokens));
       setLoading(false);
     }, 1500);
   };
@@ -183,7 +230,7 @@ export default function Lookup() {
           </div>
           <button
             onClick={handleSearch}
-            disabled={loading || address.trim().length < 10}
+            disabled={loading || address.trim().length < 2}
             className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors flex items-center gap-1.5"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}

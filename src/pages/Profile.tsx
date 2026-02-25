@@ -47,7 +47,7 @@ export default function Profile({ prefs, onUpdatePrefs }: ProfileProps) {
   };
   const riskIcons = { conservative: Shield, standard: Zap, aggressive: TrendingUp };
   const chainLabels: Record<Chain, string> = {
-    ethereum: 'Ethereum', solana: 'Solana', bsc: 'BNB Chain', polygon: 'Polygon', arbitrum: 'Arbitrum', base: 'Base',
+    ethereum: 'Ethereum', solana: 'Solana', bsc: 'BNB Chain', polygon: 'Polygon', arbitrum: 'Arbitrum', base: 'Base', cronos: 'Cronos',
   };
 
   return (

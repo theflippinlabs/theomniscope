@@ -77,6 +77,12 @@ const SYMBOLS = [
   { symbol: 'KEYCAT', name: 'Keyboard Cat', chain: 'base' as Chain, dex: 'uniswap_v2' as DEX },
   { symbol: 'HIGHER', name: 'Higher', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
   { symbol: 'MFER', name: 'mfercoin', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
+  // Cronos
+  { symbol: 'CRO', name: 'Cronos', chain: 'cronos' as Chain, dex: 'vvs_finance' as DEX },
+  { symbol: 'VVS', name: 'VVS Finance', chain: 'cronos' as Chain, dex: 'vvs_finance' as DEX },
+  { symbol: 'TONIC', name: 'Tectonic', chain: 'cronos' as Chain, dex: 'vvs_finance' as DEX },
+  { symbol: 'FER', name: 'Ferro', chain: 'cronos' as Chain, dex: 'vvs_finance' as DEX },
+  { symbol: 'DARK', name: 'Dark Crypto', chain: 'cronos' as Chain, dex: 'vvs_finance' as DEX },
 ];
 
 function rand(min: number, max: number) {
@@ -103,6 +109,14 @@ export function generateMockTokens(): Token[] {
     const volume24h = rand(50000, 20000000);
     const buyCount = randInt(200, 5000);
     const sellCount = randInt(150, 4000);
+
+    // Distribute ages: ~20% < 1h, ~20% 1-6h, ~20% 6-24h, ~20% 1-7d, ~20% older
+    const ageBucket = i % 5;
+    const ageHours = ageBucket === 0 ? rand(0.1, 1) :
+                     ageBucket === 1 ? rand(1, 6) :
+                     ageBucket === 2 ? rand(6, 24) :
+                     ageBucket === 3 ? rand(24, 168) :
+                     rand(168, 8760);
     
     return {
       id: `token-${i}`,
@@ -124,7 +138,7 @@ export function generateMockTokens(): Token[] {
       buyCount,
       sellCount,
       holders: randInt(500, 50000),
-      ageHours: rand(2, 8760),
+      ageHours,
       volatility: rand(5, 80),
       rsi: rand(15, 90),
       ema20,
