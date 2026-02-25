@@ -49,9 +49,16 @@ const translations = {
   'radar.allChains': { en: 'All Chains', fr: 'Toutes' },
   'radar.topGainers': { en: 'Top Gainers', fr: 'Top Hausse' },
   'radar.topLosers': { en: 'Top Losers', fr: 'Top Baisse' },
+  'radar.topVolume': { en: 'Top Volume', fr: 'Top Volume' },
   'radar.newListings': { en: 'New Listings', fr: 'Nouveaux Listings' },
   'radar.dangerZone': { en: 'Danger Zone', fr: 'Zone de Danger' },
   'radar.allTokens': { en: 'All Tokens', fr: 'Tous les Tokens' },
+  'radar.sortVolume': { en: 'Volume', fr: 'Volume' },
+  'radar.sortMcap': { en: 'MCap', fr: 'MCap' },
+  'radar.sortLiq': { en: 'Liquidity', fr: 'Liquidité' },
+  'radar.sortHolders': { en: 'Holders', fr: 'Holders' },
+  'radar.sortNew': { en: 'Newest', fr: 'Récents' },
+  'radar.sortVol': { en: 'Volatility', fr: 'Volatilité' },
 
   // Opportunities
   'opps.title': { en: 'Opportunities', fr: 'Opportunités' },
