@@ -145,7 +145,7 @@ export default function Radar({ prefs }: RadarProps) {
         </div>
         {/* Chain filters */}
         <div className="flex gap-1.5 mt-2.5 overflow-x-auto scrollbar-none pb-0.5">
-          {(['all', 'eth', 'sol', 'bsc', 'arb', 'poly', 'base'] as QuickFilter[]).map(f => (
+          {(['all', 'eth', 'sol', 'bsc', 'arb', 'poly', 'base', 'cro'] as QuickFilter[]).map(f => (
             <button
               key={f}
               onClick={() => setChainFilter(f)}
