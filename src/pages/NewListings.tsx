@@ -1,15 +1,46 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import useEmblaCarousel from 'embla-carousel-react';
 import { useMarketData } from '@/hooks/useMarketData';
 import { TokenCard } from '@/components/TokenCard';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n';
 import { formatPrice, formatPct } from '@/lib/formatters';
-import type { Chain } from '@/lib/types';
+import type { Chain, Token } from '@/lib/types';
 import {
   Rocket, Clock, TrendingUp, ShieldAlert, Sparkles, Filter
 } from 'lucide-react';
+
+function HotCarousel({ tokens, formatAge, navigate }: { tokens: Token[]; formatAge: (h: number) => string; navigate: (path: string) => void }) {
+  const [emblaRef] = useEmblaCarousel({ align: 'start', dragFree: true, containScroll: 'trimSnaps' });
+  return (
+    <div className="overflow-hidden" ref={emblaRef}>
+      <div className="flex gap-2.5">
+        {tokens.map((tk, i) => (
+          <motion.button
+            key={tk.id}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.05 }}
+            onClick={() => navigate(`/token/${tk.id}`)}
+            className="gradient-card rounded-xl p-3 min-w-[140px] flex-shrink-0 text-left active:scale-95 transition-transform border border-warning/10"
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <p className="font-bold text-foreground text-sm">{tk.symbol}</p>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-warning/10 text-warning font-mono">
+                {formatAge(tk.ageHours)}
+              </span>
+            </div>
+            <p className="font-mono text-xs text-foreground tabular-nums">{formatPrice(tk.price)}</p>
+            <p className="font-mono text-xs text-success mt-0.5 tabular-nums">{formatPct(tk.priceChange1h)}</p>
+            <p className="text-[9px] text-muted-foreground mt-1 capitalize">{tk.chain}</p>
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type TimeFilter = 'all' | '1h' | '6h' | '24h' | '7d';
 type ChainFilter = 'all' | 'ethereum' | 'solana' | 'bsc' | 'arbitrum' | 'polygon' | 'base';
@@ -114,28 +145,7 @@ export default function NewListings() {
               <Sparkles className="w-4 h-4 text-warning" />
               <h2 className="text-sm font-display font-semibold text-foreground">{t('newListings.hotNew')}</h2>
             </div>
-            <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
-              {hotNew.map((tk, i) => (
-                <motion.button
-                  key={tk.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  onClick={() => navigate(`/token/${tk.id}`)}
-                  className="gradient-card rounded-xl p-3 min-w-[140px] flex-shrink-0 text-left active:scale-95 transition-transform border border-warning/10"
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <p className="font-bold text-foreground text-sm">{tk.symbol}</p>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-warning/10 text-warning font-mono">
-                      {formatAge(tk.ageHours)}
-                    </span>
-                  </div>
-                  <p className="font-mono text-xs text-foreground tabular-nums">{formatPrice(tk.price)}</p>
-                  <p className="font-mono text-xs text-success mt-0.5 tabular-nums">{formatPct(tk.priceChange1h)}</p>
-                  <p className="text-[9px] text-muted-foreground mt-1 capitalize">{tk.chain}</p>
-                </motion.button>
-              ))}
-            </div>
+            <HotCarousel tokens={hotNew} formatAge={formatAge} navigate={navigate} />
           </section>
         )}
 

@@ -18,6 +18,7 @@ export function BottomNav({ unreadAlerts = 0 }: BottomNavProps) {
     { path: '/lookup', label: t('nav.lookup'), icon: Eye },
     { path: '/opportunities', label: t('nav.signals'), icon: Zap },
     { path: '/alerts', label: t('nav.alerts'), icon: Bell },
+    { path: '/profile', label: t('nav.profile'), icon: User },
   ];
 
   if (location.pathname.startsWith('/token/')) return null;

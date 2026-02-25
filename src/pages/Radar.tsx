@@ -3,18 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMarketData } from '@/hooks/useMarketData';
 import { TokenCard } from '@/components/TokenCard';
+import { TokenCarousel } from '@/components/TokenCarousel';
 import { TokenTable } from '@/components/TokenTable';
 import { DailyBrief } from '@/components/DailyBrief';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { formatPrice, formatPct } from '@/lib/formatters';
 import { useI18n } from '@/lib/i18n';
 import type { UserPreferences } from '@/lib/userPreferences';
 import type { Chain, Token } from '@/lib/types';
 import {
   Search, TrendingUp, TrendingDown, Flame, ShieldAlert, X, Activity, Sun,
-  ArrowUpDown, BarChart3, Droplets, Users, Zap
+  BarChart3, Droplets, Users, Zap
 } from 'lucide-react';
 
 interface RadarProps {
@@ -141,25 +141,7 @@ export default function Radar({ prefs }: RadarProps) {
             <h2 className="text-sm font-display font-semibold text-foreground">{t('radar.topGainers')}</h2>
             <span className="text-[10px] text-muted-foreground font-mono ml-auto">1h</span>
           </div>
-          <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
-            {topGainers.map((tk, i) => (
-              <motion.button
-                key={tk.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                onClick={() => navigate(`/token/${tk.id}`)}
-                className="gradient-card rounded-xl p-3 min-w-[130px] flex-shrink-0 text-left active:scale-95 transition-transform"
-              >
-                <div className="flex items-center gap-1">
-                  <p className="font-bold text-foreground text-sm">{tk.symbol}</p>
-                  <span className="text-[8px] text-muted-foreground uppercase">{tk.chain.slice(0, 3)}</span>
-                </div>
-                <p className="font-mono text-xs text-foreground mt-1 tabular-nums">{formatPrice(tk.price)}</p>
-                <p className="font-mono text-xs text-success mt-0.5 tabular-nums">{formatPct(tk.priceChange1h)}</p>
-              </motion.button>
-            ))}
-          </div>
+          <TokenCarousel tokens={topGainers} variant="success" />
         </section>
 
         {/* Top Losers */}
@@ -169,25 +151,7 @@ export default function Radar({ prefs }: RadarProps) {
             <h2 className="text-sm font-display font-semibold text-foreground">{t('radar.topLosers')}</h2>
             <span className="text-[10px] text-muted-foreground font-mono ml-auto">1h</span>
           </div>
-          <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
-            {topLosers.map((tk, i) => (
-              <motion.button
-                key={tk.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                onClick={() => navigate(`/token/${tk.id}`)}
-                className="gradient-card rounded-xl p-3 min-w-[130px] flex-shrink-0 text-left active:scale-95 transition-transform"
-              >
-                <div className="flex items-center gap-1">
-                  <p className="font-bold text-foreground text-sm">{tk.symbol}</p>
-                  <span className="text-[8px] text-muted-foreground uppercase">{tk.chain.slice(0, 3)}</span>
-                </div>
-                <p className="font-mono text-xs text-foreground mt-1 tabular-nums">{formatPrice(tk.price)}</p>
-                <p className="font-mono text-xs text-danger mt-0.5 tabular-nums">{formatPct(tk.priceChange1h)}</p>
-              </motion.button>
-            ))}
-          </div>
+          <TokenCarousel tokens={topLosers} variant="danger" />
         </section>
 
         {/* Top Volume */}
