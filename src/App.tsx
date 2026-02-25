@@ -16,6 +16,7 @@ import Watchlists from "@/pages/Watchlists";
 import AlertsPage from "@/pages/AlertsPage";
 import Profile from "@/pages/Profile";
 import TokenDetail from "@/pages/TokenDetail";
+import NewListings from "@/pages/NewListings";
 import Admin from "@/pages/Admin";
 import NotFound from "@/pages/NotFound";
 
@@ -41,6 +42,7 @@ function AppContent() {
               <Routes>
                 <Route element={<AppShell unreadAlerts={unreadAlerts} />}>
                   <Route path="/" element={<Radar prefs={prefs} />} />
+                  <Route path="/new-listings" element={<NewListings />} />
                   <Route path="/opportunities" element={<Opportunities prefs={prefs} />} />
                   <Route path="/watchlists" element={<Watchlists />} />
                   <Route path="/alerts" element={<AlertsPage />} />

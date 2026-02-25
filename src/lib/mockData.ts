@@ -1,14 +1,24 @@
 import type { Token, Chain, DEX, CandleData } from './types';
 
 const SYMBOLS = [
-  // Ethereum
+  // Ethereum - Meme coins & tokens
   { symbol: 'PEPE', name: 'Pepe', chain: 'ethereum' as Chain, dex: 'uniswap_v3' as DEX },
   { symbol: 'WOJAK', name: 'Wojak', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
   { symbol: 'SHIB', name: 'Shiba Inu', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
   { symbol: 'TURBO', name: 'Turbo', chain: 'ethereum' as Chain, dex: 'uniswap_v3' as DEX },
   { symbol: 'MEME', name: 'Memecoin', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
   { symbol: 'FLOKI', name: 'Floki', chain: 'ethereum' as Chain, dex: 'uniswap_v3' as DEX },
-  // Solana
+  { symbol: 'DEGEN', name: 'Degen', chain: 'ethereum' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'ELON', name: 'Dogelon Mars', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
+  { symbol: 'LADYS', name: 'Milady Meme Coin', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
+  { symbol: 'HPOS', name: 'Harry Potter Obama', chain: 'ethereum' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'TSUKA', name: 'Dejitaru Tsuka', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
+  { symbol: 'CULT', name: 'Cult DAO', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
+  { symbol: 'RFD', name: 'Refund', chain: 'ethereum' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'JESUS', name: 'Jesus Coin', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
+  { symbol: 'BONE', name: 'Bone ShibaSwap', chain: 'ethereum' as Chain, dex: 'uniswap_v2' as DEX },
+  { symbol: 'LEASH', name: 'Doge Killer', chain: 'ethereum' as Chain, dex: 'sushiswap' as DEX },
+  // Solana - Meme coins
   { symbol: 'BONK', name: 'Bonk', chain: 'solana' as Chain, dex: 'raydium' as DEX },
   { symbol: 'WIF', name: 'dogwifhat', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
   { symbol: 'POPCAT', name: 'Popcat', chain: 'solana' as Chain, dex: 'raydium' as DEX },
@@ -21,19 +31,52 @@ const SYMBOLS = [
   { symbol: 'FARTCOIN', name: 'Fartcoin', chain: 'solana' as Chain, dex: 'raydium' as DEX },
   { symbol: 'AI16Z', name: 'ai16z', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
   { symbol: 'PNUT', name: 'Peanut the Squirrel', chain: 'solana' as Chain, dex: 'raydium' as DEX },
-  // BSC
+  { symbol: 'JITO', name: 'Jito', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
+  { symbol: 'PYTH', name: 'Pyth Network', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
+  { symbol: 'TNSR', name: 'Tensor', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
+  { symbol: 'SAMO', name: 'Samoyedcoin', chain: 'solana' as Chain, dex: 'raydium' as DEX },
+  { symbol: 'ZEUS', name: 'Zeus Network', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
+  { symbol: 'RENDER', name: 'Render', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
+  { symbol: 'TRUMP', name: 'Official Trump', chain: 'solana' as Chain, dex: 'raydium' as DEX },
+  { symbol: 'MELANIA', name: 'Melania Meme', chain: 'solana' as Chain, dex: 'raydium' as DEX },
+  { symbol: 'PENGU', name: 'Pudgy Penguins', chain: 'solana' as Chain, dex: 'jupiter' as DEX },
+  // BSC - Meme coins & DeFi
   { symbol: 'CAKE', name: 'PancakeSwap', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
   { symbol: 'DOGE2', name: 'Doge 2.0', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
+  { symbol: 'BABYDOGE', name: 'Baby Doge Coin', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
+  { symbol: 'SAFEMOON', name: 'SafeMoon', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
+  { symbol: 'DOGE3', name: 'Doge 3.0', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
+  { symbol: 'CATGIRL', name: 'Catgirl', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
+  { symbol: 'SQUID', name: 'Squid Game', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
+  { symbol: 'BRISE', name: 'Bitrise Token', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
+  { symbol: 'LOVELY', name: 'Lovely Inu', chain: 'bsc' as Chain, dex: 'pancakeswap' as DEX },
   // Arbitrum
   { symbol: 'ARB', name: 'Arbitrum', chain: 'arbitrum' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'GMX', name: 'GMX', chain: 'arbitrum' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'MAGIC', name: 'Magic', chain: 'arbitrum' as Chain, dex: 'sushiswap' as DEX },
+  { symbol: 'RDNT', name: 'Radiant Capital', chain: 'arbitrum' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'GRAIL', name: 'Camelot', chain: 'arbitrum' as Chain, dex: 'sushiswap' as DEX },
+  { symbol: 'PENDLE', name: 'Pendle', chain: 'arbitrum' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'VELA', name: 'Vela Exchange', chain: 'arbitrum' as Chain, dex: 'uniswap_v3' as DEX },
+  // Polygon
   { symbol: 'MATIC', name: 'Polygon', chain: 'polygon' as Chain, dex: 'uniswap_v3' as DEX },
-  // Base
+  { symbol: 'QUICK', name: 'QuickSwap', chain: 'polygon' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'GHST', name: 'Aavegotchi', chain: 'polygon' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'SAND', name: 'The Sandbox', chain: 'polygon' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'MANA', name: 'Decentraland', chain: 'polygon' as Chain, dex: 'sushiswap' as DEX },
+  { symbol: 'AAVE', name: 'Aave', chain: 'polygon' as Chain, dex: 'uniswap_v3' as DEX },
+  // Base - Meme coins & DeFi
   { symbol: 'NEIRO', name: 'Neiro', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
   { symbol: 'MOG', name: 'Mog Coin', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
   { symbol: 'BRETT', name: 'Brett', chain: 'base' as Chain, dex: 'uniswap_v2' as DEX },
   { symbol: 'AERO', name: 'Aerodrome', chain: 'base' as Chain, dex: 'sushiswap' as DEX },
   { symbol: 'VIRTUAL', name: 'Virtual', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
   { symbol: 'TOSHI', name: 'Toshi', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'DEGEN2', name: 'Degen Base', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'NORMIE', name: 'Normie', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'KEYCAT', name: 'Keyboard Cat', chain: 'base' as Chain, dex: 'uniswap_v2' as DEX },
+  { symbol: 'HIGHER', name: 'Higher', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
+  { symbol: 'MFER', name: 'mfercoin', chain: 'base' as Chain, dex: 'uniswap_v3' as DEX },
 ];
 
 function rand(min: number, max: number) {

@@ -128,8 +128,18 @@ const translations = {
   'disclaimer.label': { en: 'Disclaimer:', fr: 'Avertissement :' },
   'disclaimer.text': { en: 'Information only — not financial advice. Signals are rule-based, no guarantee of profit.', fr: 'Information uniquement — pas un conseil financier. Les signaux sont basés sur des règles, aucune garantie de profit.' },
 
+  // New Listings
+  'newListings.title': { en: 'New Listings', fr: 'Nouveaux Listings' },
+  'newListings.detected': { en: 'detected', fr: 'détectés' },
+  'newListings.allTime': { en: 'All', fr: 'Tous' },
+  'newListings.hotNew': { en: '🔥 Hot New Tokens', fr: '🔥 Nouveaux Tokens Chauds' },
+  'newListings.riskyNew': { en: '⚠ Risky New Tokens', fr: '⚠ Nouveaux Tokens Risqués' },
+  'newListings.allNew': { en: 'All New Listings', fr: 'Tous les Nouveaux' },
+  'newListings.none': { en: 'No new listings in this time window.', fr: 'Aucun nouveau listing dans cette période.' },
+
   // Bottom Nav
   'nav.radar': { en: 'Radar', fr: 'Radar' },
+  'nav.new': { en: 'New', fr: 'Nouveaux' },
   'nav.signals': { en: 'Signals', fr: 'Signaux' },
   'nav.watch': { en: 'Watch', fr: 'Suivi' },
   'nav.alerts': { en: 'Alerts', fr: 'Alertes' },
