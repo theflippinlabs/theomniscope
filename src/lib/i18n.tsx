@@ -144,9 +144,24 @@ const translations = {
   'newListings.allNew': { en: 'All New Listings', fr: 'Tous les Nouveaux' },
   'newListings.none': { en: 'No new listings in this time window.', fr: 'Aucun nouveau listing dans cette période.' },
 
+  // Lookup
+  'lookup.title': { en: 'Token Scanner', fr: 'Scanner de Token' },
+  'lookup.subtitle': { en: 'Paste a contract address to get a full analysis', fr: "Collez une adresse de contrat pour une analyse complète" },
+  'lookup.placeholder': { en: '0x... or Solana address', fr: '0x... ou adresse Solana' },
+  'lookup.scan': { en: 'Scan', fr: 'Scanner' },
+  'lookup.scanning': { en: 'Deep scanning in progress...', fr: 'Scan approfondi en cours...' },
+  'lookup.emptyTitle': { en: 'Token Scanner', fr: 'Scanner de Token' },
+  'lookup.emptyDesc': { en: 'Paste any contract address to get a complete analysis: risk, chart, holders, liquidity, deployer history...', fr: "Collez n'importe quelle adresse pour obtenir une analyse complète : risque, graphique, holders, liquidité, historique du déployeur..." },
+  'lookup.chart': { en: 'Price Chart', fr: 'Graphique' },
+  'lookup.riskAssessment': { en: 'Risk Assessment', fr: 'Évaluation du Risque' },
+  'lookup.metrics': { en: 'Market Metrics', fr: 'Métriques Marché' },
+  'lookup.activity': { en: 'Trading Activity', fr: 'Activité de Trading' },
+  'lookup.security': { en: 'Security & Liquidity', fr: 'Sécurité & Liquidité' },
+
   // Bottom Nav
   'nav.radar': { en: 'Radar', fr: 'Radar' },
   'nav.new': { en: 'New', fr: 'Nouveaux' },
+  'nav.lookup': { en: 'Scan', fr: 'Scan' },
   'nav.signals': { en: 'Signals', fr: 'Signaux' },
   'nav.watch': { en: 'Watch', fr: 'Suivi' },
   'nav.alerts': { en: 'Alerts', fr: 'Alertes' },
