@@ -6,6 +6,7 @@ import { TokenCard } from '@/components/TokenCard';
 import { TokenCarousel } from '@/components/TokenCarousel';
 import { TokenTable } from '@/components/TokenTable';
 import { DailyBrief } from '@/components/DailyBrief';
+import { TokenFilters, defaultFilters, countActiveFilters, type TokenFilterState } from '@/components/TokenFilters';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -47,7 +48,9 @@ export default function Radar({ prefs }: RadarProps) {
   const [chainFilter, setChainFilter] = useState<QuickFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('volume');
   const [showBrief, setShowBrief] = useState(false);
+  const [advFilters, setAdvFilters] = useState<TokenFilterState>(defaultFilters);
   const { t } = useI18n();
+  const activeFilterCount = countActiveFilters(advFilters);
 
   const filtered = useMemo(() => tokens.filter(tk => {
     if (search && !tk.symbol.toLowerCase().includes(search.toLowerCase()) && !tk.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -55,8 +58,32 @@ export default function Radar({ prefs }: RadarProps) {
     if (!prefs.chains.includes(tk.chain)) return false;
     return true;
   }), [tokens, search, chainFilter, prefs.chains]);
+  const advancedFiltered = useMemo(() => {
+    const f = advFilters;
+    return filtered.filter(tk => {
+      if (f.mcapMin !== null && tk.marketCap < f.mcapMin) return false;
+      if (f.mcapMax !== null && tk.marketCap > f.mcapMax) return false;
+      if (f.liqMin !== null && tk.liquidity < f.liqMin) return false;
+      if (f.holdersMin !== null && tk.holders < f.holdersMin) return false;
+      if (f.rsiMin !== null && tk.rsi < f.rsiMin) return false;
+      if (f.rsiMax !== null && tk.rsi > f.rsiMax) return false;
+      if (f.buyPressure && tk.buyCount <= tk.sellCount) return false;
+      if (f.ageMax !== 'all') {
+        const maxH = f.ageMax === '1h' ? 1 : f.ageMax === '6h' ? 6 : f.ageMax === '24h' ? 24 : 168;
+        if (tk.ageHours > maxH) return false;
+      }
+      if (f.riskMax !== 'all') {
+        const r = risks.get(tk.id);
+        if (r) {
+          const maxScore = f.riskMax === 'low' ? 25 : f.riskMax === 'medium' ? 50 : 75;
+          if (r.score > maxScore) return false;
+        }
+      }
+      return true;
+    });
+  }, [filtered, advFilters, risks]);
 
-  const sorted = useMemo(() => [...filtered].sort(sortFns[sortKey]), [filtered, sortKey]);
+  const sorted = useMemo(() => [...advancedFiltered].sort(sortFns[sortKey]), [advancedFiltered, sortKey]);
 
   const topGainers = useMemo(() => [...filtered].sort((a, b) => b.priceChange1h - a.priceChange1h).slice(0, 15), [filtered]);
   const topLosers = useMemo(() => [...filtered].sort((a, b) => a.priceChange1h - b.priceChange1h).slice(0, 15), [filtered]);
@@ -184,13 +211,14 @@ export default function Radar({ prefs }: RadarProps) {
           </section>
         )}
 
-        {/* All Tokens with sort */}
+        {/* All Tokens with sort + filters */}
         <section>
           <div className="flex items-center gap-2 mb-2">
             <h2 className="text-sm font-display font-semibold text-foreground">
               {t('radar.allTokens')} <span className="text-muted-foreground font-mono text-xs">({sorted.length})</span>
             </h2>
           </div>
+          <TokenFilters filters={advFilters} onChange={setAdvFilters} activeCount={activeFilterCount} />
           {/* Sort pills */}
           <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-none pb-0.5">
             {sortOptions.map(opt => (
