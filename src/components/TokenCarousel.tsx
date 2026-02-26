@@ -1,4 +1,3 @@
-import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate } from 'react-router-dom';
 import { formatPrice, formatPct } from '@/lib/formatters';
 import type { Token } from '@/lib/types';
@@ -9,7 +8,6 @@ interface TokenCarouselProps {
 }
 
 export function TokenCarousel({ tokens, variant }: TokenCarouselProps) {
-  const [emblaRef] = useEmblaCarousel({ axis: 'y', align: 'start', dragFree: true, loop: false });
   const navigate = useNavigate();
 
   const changeColor = variant === 'success' ? 'text-success' : variant === 'danger' ? 'text-danger' : 'text-foreground';
@@ -17,8 +15,7 @@ export function TokenCarousel({ tokens, variant }: TokenCarouselProps) {
   const glowAccent = variant === 'success' ? 'shadow-success/10' : variant === 'danger' ? 'shadow-danger/10' : 'shadow-primary/10';
 
   return (
-    <div className="overflow-hidden h-[180px]" ref={emblaRef}>
-      <div className="flex flex-col gap-2">
+    <div className="overflow-y-auto max-h-[220px] scrollbar-none space-y-2">
         {tokens.map((tk) => (
           <button
             key={tk.id}
@@ -32,11 +29,10 @@ export function TokenCarousel({ tokens, variant }: TokenCarouselProps) {
             <div className="flex items-center gap-3 shrink-0">
               <span className="text-[9px] text-muted-foreground uppercase px-1.5 py-0.5 rounded bg-secondary/70">{tk.chain.slice(0, 3)}</span>
               <span className="font-mono text-[11px] text-foreground tabular-nums">{formatPrice(tk.price)}</span>
-              <span className={`font-mono text-[11px] tabular-nums font-semibold ${changeColor}`}>{formatPct(tk.priceChange1h)}</span>
+            <span className={`font-mono text-[11px] tabular-nums font-semibold ${changeColor}`}>{formatPct(tk.priceChange1h)}</span>
             </div>
           </button>
         ))}
-      </div>
     </div>
   );
 }
