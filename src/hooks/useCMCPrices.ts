@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { Chain, DEX } from '@/lib/types';
 
-// All symbols we track, mapped to their chain info
 export const TRACKED_TOKENS: { symbol: string; name: string; chain: Chain; dex: DEX }[] = [
   { symbol: 'PEPE', name: 'Pepe', chain: 'ethereum', dex: 'uniswap_v3' },
   { symbol: 'SHIB', name: 'Shiba Inu', chain: 'ethereum', dex: 'uniswap_v2' },
@@ -60,14 +59,51 @@ export interface CMCTokenData {
   lastUpdated: string;
 }
 
-async function fetchCMCPrices(): Promise<Record<string, CMCTokenData>> {
+export interface DexTokenData {
+  pairAddress: string;
+  dexId: string;
+  chainId: string;
+  priceUsd: number | null;
+  priceChange5m: number | null;
+  priceChange1h: number | null;
+  priceChange6h: number | null;
+  priceChange24h: number | null;
+  volume5m: number | null;
+  volume1h: number | null;
+  volume6h: number | null;
+  volume24h: number | null;
+  liquidity: number | null;
+  marketCap: number | null;
+  pairCreatedAt: number | null;
+  txns24h: number;
+  buys24h: number;
+  sells24h: number;
+  txns1h: number;
+  buys1h: number;
+  sells1h: number;
+  txns5m: number;
+  buys5m: number;
+  sells5m: number;
+  baseTokenAddress: string | null;
+  baseTokenName: string | null;
+  baseTokenSymbol: string | null;
+}
+
+export interface CombinedApiData {
+  cmc: Record<string, CMCTokenData>;
+  dex: Record<string, DexTokenData>;
+  timestamp: number;
+}
+
+async function fetchAllPrices(): Promise<CombinedApiData> {
   const symbols = TRACKED_TOKENS.map(t => t.symbol).join(',');
+  const tokenMeta = TRACKED_TOKENS.map(t => `${t.symbol}:${t.chain}`).join(',');
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  
+
   const res = await fetch(
-    `https://${projectId}.supabase.co/functions/v1/fetch-prices?symbols=${encodeURIComponent(symbols)}`,
+    `https://${projectId}.supabase.co/functions/v1/fetch-prices?symbols=${encodeURIComponent(symbols)}&tokenMeta=${encodeURIComponent(tokenMeta)}`,
     {
       headers: {
         'apikey': anonKey,
@@ -80,14 +116,13 @@ async function fetchCMCPrices(): Promise<Record<string, CMCTokenData>> {
     throw new Error(`Failed to fetch prices: ${res.status}`);
   }
 
-  const json = await res.json();
-  return json.tokens || {};
+  return await res.json();
 }
 
 export function useCMCPrices() {
   return useQuery({
-    queryKey: ['cmc-prices'],
-    queryFn: fetchCMCPrices,
+    queryKey: ['market-prices'],
+    queryFn: fetchAllPrices,
     refetchInterval: 60_000,
     staleTime: 30_000,
     retry: 2,

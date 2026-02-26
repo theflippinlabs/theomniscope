@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useCMCPrices, TRACKED_TOKENS, type CMCTokenData } from '@/hooks/useCMCPrices';
+import { useCMCPrices, TRACKED_TOKENS, type CombinedApiData, type CMCTokenData, type DexTokenData } from '@/hooks/useCMCPrices';
 import { evaluateSignals } from '@/lib/signalEngine';
 import { scanRisks } from '@/lib/riskScanner';
 import { scoreOpportunities } from '@/lib/opportunityScorer';
@@ -8,62 +8,88 @@ import { alertStore } from '@/lib/alertStore';
 import { paperStore } from '@/lib/paperStore';
 import type { Token, Signal, RiskReport, Alert, OpportunityScore, WalletActivity, SmartMoneySignal, Chain, DEX } from '@/lib/types';
 
-function generateAddress(chain?: string): string {
-  if (chain === 'solana') {
-    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    return Array.from({ length: 44 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  }
-  return '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-}
-
-function rand(min: number, max: number) {
-  return Math.random() * (max - min) + min;
-}
-function randInt(min: number, max: number) {
-  return Math.floor(rand(min, max));
-}
-
-function buildTokensFromCMC(cmcData: Record<string, CMCTokenData>): Token[] {
+function buildTokensFromAPIs(apiData: CombinedApiData): Token[] {
+  const { cmc, dex } = apiData;
   const tokens: Token[] = [];
 
   for (const tracked of TRACKED_TOKENS) {
-    const cmc = cmcData[tracked.symbol];
-    if (!cmc) continue; // Only show real tokens
+    const cmcEntry = cmc[tracked.symbol];
+    const dexEntry = dex[tracked.symbol];
 
-    const price = cmc.price;
-    const volume24h = cmc.volume24h;
-    const buyCount = randInt(200, 5000);
-    const sellCount = randInt(150, 4000);
+    // Must have at least one real source
+    if (!cmcEntry && !dexEntry) continue;
+
+    // Price: CMC is primary, DexScreener is fallback
+    const price = cmcEntry?.price ?? dexEntry?.priceUsd ?? 0;
+    if (price === 0) continue;
+
+    // Volume: CMC primary, DexScreener fallback
+    const volume24h = cmcEntry?.volume24h ?? dexEntry?.volume24h ?? 0;
+
+    // MarketCap: CMC primary, DexScreener fallback
+    const marketCap = cmcEntry?.marketCap ?? dexEntry?.marketCap ?? 0;
+
+    // Price changes: CMC for 1h/24h, DexScreener for 5m and more granular
+    const priceChange5m = dexEntry?.priceChange5m ?? 0;
+    const priceChange1h = cmcEntry?.priceChange1h ?? dexEntry?.priceChange1h ?? 0;
+    const priceChange24h = cmcEntry?.priceChange24h ?? dexEntry?.priceChange24h ?? 0;
+
+    // DexScreener-specific: volumes, txns, liquidity
+    const volume5m = dexEntry?.volume5m ?? 0;
+    const volume1h = dexEntry?.volume1h ?? 0;
+    const liquidity = dexEntry?.liquidity ?? 0;
+    const txCount24h = dexEntry?.txns24h ?? 0;
+    const buyCount = dexEntry?.buys24h ?? 0;
+    const sellCount = dexEntry?.sells24h ?? 0;
+
+    // Pair age from DexScreener
+    let ageHours = 0;
+    if (dexEntry?.pairCreatedAt) {
+      ageHours = Math.max(0, (Date.now() - dexEntry.pairCreatedAt) / 3600000);
+    }
+
+    // Token address from DexScreener
+    const address = dexEntry?.baseTokenAddress ?? '';
+
+    // Derived metrics from real data (no simulation)
+    const volatility = Math.abs(priceChange24h);
+    // Simple RSI approximation from price changes
+    const gains = [priceChange5m, priceChange1h, priceChange24h].filter(x => x > 0);
+    const losses = [priceChange5m, priceChange1h, priceChange24h].filter(x => x < 0);
+    const avgGain = gains.length > 0 ? gains.reduce((a, b) => a + b, 0) / gains.length : 0;
+    const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 0.01;
+    const rs = avgGain / avgLoss;
+    const rsi = 100 - (100 / (1 + rs));
 
     tokens.push({
-      id: `cmc-${cmc.cmcId}`,
-      symbol: cmc.symbol,
-      name: cmc.name,
-      address: generateAddress(tracked.chain),
-      chain: tracked.chain as Chain,
-      dex: tracked.dex as DEX,
+      id: cmcEntry ? `cmc-${cmcEntry.cmcId}` : `dex-${tracked.symbol}`,
+      symbol: tracked.symbol,
+      name: cmcEntry?.name ?? dexEntry?.baseTokenName ?? tracked.name,
+      address,
+      chain: tracked.chain,
+      dex: tracked.dex,
       price,
-      priceChange5m: rand(-2, 2), // CMC doesn't provide 5m, simulate small
-      priceChange1h: cmc.priceChange1h,
-      priceChange24h: cmc.priceChange24h,
-      volume5m: volume24h * rand(0.005, 0.02),
-      volume1h: volume24h * rand(0.03, 0.08),
+      priceChange5m,
+      priceChange1h,
+      priceChange24h,
+      volume5m,
+      volume1h,
       volume24h,
-      liquidity: volume24h * rand(0.5, 2),
-      marketCap: cmc.marketCap,
-      txCount24h: buyCount + sellCount,
+      liquidity,
+      marketCap,
+      txCount24h,
       buyCount,
       sellCount,
-      holders: randInt(500, 50000),
-      ageHours: rand(24, 8760), // We don't know real age from CMC basic
-      volatility: Math.abs(cmc.priceChange24h) * rand(1, 2),
-      rsi: rand(20, 80),
-      ema20: price * rand(0.97, 1.03),
-      ema50: price * rand(0.94, 1.06),
-      vwap: price * rand(0.98, 1.02),
-      atr: price * rand(0.02, 0.08),
+      holders: 0, // Not available from either API without premium
+      ageHours,
+      volatility,
+      rsi,
+      ema20: price, // Would need historical data for real EMA
+      ema50: price,
+      vwap: price,
+      atr: price * (volatility / 100),
       isFavorite: false,
-      tags: ['defi'],
+      tags: [],
     });
   }
 
@@ -71,8 +97,8 @@ function buildTokensFromCMC(cmcData: Record<string, CMCTokenData>): Token[] {
 }
 
 export function useMarketData() {
-  const { data: cmcData, isLoading: cmcLoading, error: cmcError } = useCMCPrices();
-  
+  const { data: apiData, isLoading, error } = useCMCPrices();
+
   const [signals, setSignals] = useState<Signal[]>([]);
   const [risks, setRisks] = useState<Map<string, RiskReport>>(new Map());
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -80,11 +106,10 @@ export function useMarketData() {
   const [walletActivities, setWalletActivities] = useState<WalletActivity[]>([]);
   const [smartMoneySignals, setSmartMoneySignals] = useState<SmartMoneySignal[]>([]);
 
-  // Build tokens from real CMC data
   const tokens = useMemo(() => {
-    if (!cmcData) return [];
-    return buildTokensFromCMC(cmcData);
-  }, [cmcData]);
+    if (!apiData) return [];
+    return buildTokensFromAPIs(apiData);
+  }, [apiData]);
 
   // Compute signals, risks, etc when tokens change
   useEffect(() => {
@@ -92,12 +117,12 @@ export function useMarketData() {
 
     const sigs = evaluateSignals(tokens);
     const riskMap = scanRisks(tokens);
-    
+
     const enrichedSignals = sigs.map(s => ({
       ...s,
       riskScore: riskMap.get(s.tokenId)?.score || 0,
     }));
-    
+
     setSignals(enrichedSignals);
     setRisks(riskMap);
 
@@ -144,21 +169,19 @@ export function useMarketData() {
     });
   }, [tokens]);
 
-  // Subscribe to alert store
   useEffect(() => {
     const update = () => setAlerts([...alertStore.getAlerts()]);
     update();
     return alertStore.subscribe(update);
   }, []);
 
-  // Update paper trades with prices
   useEffect(() => {
     if (tokens.length > 0) {
       paperStore.updatePrices(tokens);
     }
   }, [tokens]);
 
-  const opportunities = useMemo(() => 
+  const opportunities = useMemo(() =>
     signals.filter(s => s.type === 'ENTRY' && s.riskScore < 60),
     [signals]
   );
@@ -215,7 +238,7 @@ export function useMarketData() {
     markAlertRead: alertStore.markRead,
     markAllRead: alertStore.markAllRead,
     getWhosBuying: (tokenId: string) => getWhosBuying(tokenId, walletActivities),
-    isLoading: cmcLoading,
-    error: cmcError,
+    isLoading,
+    error,
   };
 }
