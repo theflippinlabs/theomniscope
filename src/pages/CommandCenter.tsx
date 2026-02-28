@@ -43,7 +43,8 @@ import { MarketChartWidget } from "@/components/dashboard/MarketChartWidget";
 import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
 import { ActivityWidget } from "@/components/dashboard/ActivityWidget";
 import { WatchlistWidget } from "@/components/dashboard/WatchlistWidget";
-import avatarDefault from "@/assets/avatar-default.png";
+import { openAiAssistant } from "@/components/AiAssistant";
+import aiAvatar from "@/assets/ai-avatar.png";
 
 // ---- Widget registry ----
 
@@ -210,12 +211,17 @@ export default function CommandCenter() {
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
         className="flex items-center gap-2.5"
       >
-        <Avatar className="w-9 h-9 ring-2 ring-primary/20 ring-offset-1 ring-offset-background">
-          <AvatarImage src={avatarDefault} alt="User avatar" />
-          <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-            OI
-          </AvatarFallback>
-        </Avatar>
+        <button
+          onClick={openAiAssistant}
+          className="active:scale-95 transition-transform"
+        >
+          <Avatar className="w-9 h-9 ring-2 ring-primary/30 ring-offset-1 ring-offset-background">
+            <AvatarImage src={aiAvatar} alt="Oracle AI" />
+            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+              AI
+            </AvatarFallback>
+          </Avatar>
+        </button>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] text-muted-foreground">{greeting}</p>
           <h1 className="text-base font-display font-bold tracking-tight truncate">

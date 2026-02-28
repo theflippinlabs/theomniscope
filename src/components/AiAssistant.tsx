@@ -1,9 +1,16 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, X, Send, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAiAssistant } from "@/hooks/useAiAssistant";
 import { useLocation } from "react-router-dom";
+
+// Global event for opening the assistant from anywhere
+const AI_OPEN_EVENT = "oracle-ai-open";
+
+export function openAiAssistant() {
+  window.dispatchEvent(new CustomEvent(AI_OPEN_EVENT));
+}
 
 interface AiContext {
   contextType: "wallet" | "token" | "case" | "alert" | "general";
@@ -68,6 +75,13 @@ export function AiAssistant() {
   const context = detectContext(location.pathname);
   const prompts = QUICK_PROMPTS[context.contextType] ?? QUICK_PROMPTS.default;
 
+  // Listen for external open events
+  useEffect(() => {
+    const handler = () => setIsOpen(true);
+    window.addEventListener(AI_OPEN_EVENT, handler);
+    return () => window.removeEventListener(AI_OPEN_EVENT, handler);
+  }, []);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
@@ -85,7 +99,7 @@ export function AiAssistant() {
 
   return (
     <>
-      {/* FAB */}
+      {/* FAB — hidden when opened from header avatar */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -93,7 +107,7 @@ export function AiAssistant() {
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-4 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+            className="fixed bottom-24 right-4 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors active:scale-95"
           >
             <Bot className="w-5 h-5" />
           </motion.button>
@@ -108,10 +122,10 @@ export function AiAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-20 right-3 left-3 sm:left-auto sm:w-[380px] z-50 max-h-[70vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
+            className="fixed bottom-20 right-3 left-3 sm:left-auto sm:w-[380px] z-50 max-h-[70vh] flex flex-col rounded-2xl border border-white/[0.06] bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-muted/30">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-display font-semibold flex-1">Oracle AI</span>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clear}>
@@ -184,7 +198,7 @@ export function AiAssistant() {
             )}
 
             {/* Input */}
-            <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border bg-muted/20">
+            <div className="flex items-center gap-2 px-3 py-2.5 border-t border-white/[0.06] bg-muted/20">
               <input
                 ref={inputRef}
                 value={input}
