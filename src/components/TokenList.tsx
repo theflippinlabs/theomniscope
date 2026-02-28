@@ -2,12 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { formatPrice, formatPct } from '@/lib/formatters';
 import type { Token } from '@/lib/types';
 
-interface TokenCarouselProps {
+interface TokenListProps {
   tokens: Token[];
   variant: 'success' | 'danger' | 'default';
 }
 
-export function TokenCarousel({ tokens, variant }: TokenCarouselProps) {
+export function TokenList({ tokens, variant }: TokenListProps) {
   const navigate = useNavigate();
 
   const changeColor = variant === 'success' ? 'text-success' : variant === 'danger' ? 'text-danger' : 'text-foreground';
@@ -36,3 +36,6 @@ export function TokenCarousel({ tokens, variant }: TokenCarouselProps) {
     </div>
   );
 }
+
+/** @deprecated Use TokenList instead */
+export const TokenCarousel = TokenList;

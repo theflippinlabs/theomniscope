@@ -86,8 +86,8 @@ export default function TokenIntel() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass-strong border-b border-border/50 px-4 py-3">
+      {/* Search header — no sticky to avoid double header with AppShell */}
+      <div className="px-4 pt-3 pb-2 border-b border-border/30">
         <div className="flex items-center gap-2 mb-3">
           {paramAddress && (
             <button
@@ -130,7 +130,7 @@ export default function TokenIntel() {
             Scan
           </button>
         </div>
-      </header>
+      </div>
 
       <main className="px-4 py-4 space-y-4">
         <AnimatePresence mode="wait">

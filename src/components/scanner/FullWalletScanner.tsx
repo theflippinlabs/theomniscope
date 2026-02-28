@@ -7,7 +7,6 @@ import {
   Clock,
   Download,
   ExternalLink,
-  Filter,
   Layers,
   Loader2,
   Network,
@@ -15,8 +14,6 @@ import {
   Settings2,
   Shield,
   ShieldAlert,
-  ToggleLeft,
-  ToggleRight,
   Wallet,
   Zap,
 } from "lucide-react";

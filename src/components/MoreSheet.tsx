@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Eye, Settings, Shield, BookOpen, Network, Zap,
+  Eye, Shield, BookOpen, Network, Zap,
   List, ShieldCheck, BarChart3
 } from "lucide-react";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
-import { supabase } from "@/integrations/supabase/client";
-
-const ADMIN_CODE = "JPKW9ZVZ";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 
 interface MoreSheetProps {
   open: boolean;
@@ -37,21 +35,7 @@ const sections = [
 
 export function MoreSheet({ open, onOpenChange }: MoreSheetProps) {
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    const deviceId = localStorage.getItem("oracle_device_id");
-    if (!deviceId) return;
-    supabase
-      .from("invitation_codes")
-      .select("code")
-      .eq("device_id", deviceId)
-      .eq("is_used", true)
-      .limit(1)
-      .then(({ data }) => {
-        if (data?.[0]?.code === ADMIN_CODE) setIsAdmin(true);
-      });
-  }, []);
+  const isAdmin = useAdminStatus();
 
   const go = (path: string) => {
     onOpenChange(false);

@@ -9,7 +9,8 @@ export default function WalletDetail() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <header className="sticky top-0 z-40 glass-strong border-b border-border/50 px-4 py-3">
+      {/* Inline header — no sticky to avoid double header with AppShell */}
+      <div className="px-4 pt-3 pb-2 border-b border-border/30">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4" />
@@ -18,7 +19,7 @@ export default function WalletDetail() {
             Wallet Intelligence
           </h1>
         </div>
-      </header>
+      </div>
       <main className="px-4 py-4">
         <FullWalletScanner initialAddress={address} />
       </main>

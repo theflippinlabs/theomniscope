@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMarketData } from '@/hooks/useMarketData';
 import { TokenCard } from '@/components/TokenCard';
-import { TokenCarousel } from '@/components/TokenCarousel';
+import { TokenList } from '@/components/TokenList';
 import { TokenTable } from '@/components/TokenTable';
 import { DailyBrief } from '@/components/DailyBrief';
 import { TokenFilters, defaultFilters, countActiveFilters, type TokenFilterState } from '@/components/TokenFilters';
@@ -174,7 +174,7 @@ export default function Radar({ prefs }: RadarProps) {
               </div>
             </AccordionTrigger>
             <AccordionContent>
-              <TokenCarousel tokens={topGainers} variant="success" />
+              <TokenList tokens={topGainers} variant="success" />
             </AccordionContent>
           </AccordionItem>
 
@@ -189,7 +189,7 @@ export default function Radar({ prefs }: RadarProps) {
               </div>
             </AccordionTrigger>
             <AccordionContent>
-              <TokenCarousel tokens={topLosers} variant="danger" />
+              <TokenList tokens={topLosers} variant="danger" />
             </AccordionContent>
           </AccordionItem>
 
@@ -204,7 +204,7 @@ export default function Radar({ prefs }: RadarProps) {
               </div>
             </AccordionTrigger>
             <AccordionContent>
-              <TokenCarousel tokens={topVolume} variant="default" />
+              <TokenList tokens={topVolume} variant="default" />
             </AccordionContent>
           </AccordionItem>
 
@@ -218,7 +218,7 @@ export default function Radar({ prefs }: RadarProps) {
               </div>
             </AccordionTrigger>
             <AccordionContent>
-              <TokenCarousel tokens={newTokens} variant="default" />
+              <TokenList tokens={newTokens} variant="default" />
             </AccordionContent>
           </AccordionItem>
 
@@ -233,7 +233,7 @@ export default function Radar({ prefs }: RadarProps) {
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <TokenCarousel tokens={highRisk} variant="danger" />
+                <TokenList tokens={highRisk} variant="danger" />
               </AccordionContent>
             </AccordionItem>
           )}

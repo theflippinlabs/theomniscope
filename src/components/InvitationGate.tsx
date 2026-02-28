@@ -152,12 +152,6 @@ export default function InvitationGate({ onGranted }: { onGranted: () => void })
         </div>
 
         <p className="text-[11px] text-muted-foreground">{t('gate.byLabs')}</p>
-        <button
-          onClick={() => navigate('/admin')}
-          className="mt-2 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
-        >
-          ⚙
-        </button>
       </motion.div>
     </div>
   );

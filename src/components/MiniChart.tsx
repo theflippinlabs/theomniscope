@@ -23,35 +23,40 @@ export function MiniChart({ basePrice, height = 120, positive }: MiniChartProps)
     : 'hsl(173, 80%, 40%)';
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-        <defs>
-          <linearGradient id={`gradient-${positive}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <XAxis dataKey="time" hide />
-        <YAxis hide domain={['auto', 'auto']} />
-        <Tooltip
-          contentStyle={{
-            background: 'hsl(220, 18%, 12%)',
-            border: '1px solid hsl(220, 14%, 18%)',
-            borderRadius: '6px',
-            fontSize: '11px',
-            fontFamily: 'JetBrains Mono',
-          }}
-          labelStyle={{ color: 'hsl(215, 15%, 50%)' }}
-          itemStyle={{ color: 'hsl(210, 20%, 92%)' }}
-        />
-        <Area
-          type="monotone"
-          dataKey="price"
-          stroke={color}
-          strokeWidth={1.5}
-          fill={`url(#gradient-${positive})`}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div className="relative">
+      <ResponsiveContainer width="100%" height={height}>
+        <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={`gradient-${positive}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="time" hide />
+          <YAxis hide domain={['auto', 'auto']} />
+          <Tooltip
+            contentStyle={{
+              background: 'hsl(220, 18%, 12%)',
+              border: '1px solid hsl(220, 14%, 18%)',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontFamily: 'JetBrains Mono',
+            }}
+            labelStyle={{ color: 'hsl(215, 15%, 50%)' }}
+            itemStyle={{ color: 'hsl(210, 20%, 92%)' }}
+          />
+          <Area
+            type="monotone"
+            dataKey="price"
+            stroke={color}
+            strokeWidth={1.5}
+            fill={`url(#gradient-${positive})`}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+      <span className="absolute bottom-1 right-1 text-[8px] text-muted-foreground/50 font-mono bg-background/60 px-1 rounded">
+        Simulated
+      </span>
+    </div>
   );
 }
