@@ -55,29 +55,28 @@ export function DashboardWidget({
       ref={setNodeRef}
       style={style}
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{
         opacity: isDragging ? 0.7 : 1,
         scale: isDragging ? 1.03 : 1,
+        y: 0,
       }}
-      className={cn(
-        sizeClasses[size],
-        "group relative",
-        className
-      )}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className={cn(sizeClasses[size], "group relative", className)}
     >
       <div
         className={cn(
-          "relative h-full rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm overflow-hidden",
+          "relative h-full rounded-2xl border border-border/40 bg-card/90 backdrop-blur-md overflow-hidden",
           "transition-all duration-300",
-          isDragging && "shadow-2xl ring-2 ring-primary/30 z-50",
+          isDragging && "shadow-2xl shadow-primary/10 ring-2 ring-primary/30 z-50",
           isEditMode && "ring-1 ring-dashed ring-primary/20 animate-pulse-glow",
-          !isDragging && "hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+          !isDragging &&
+            "hover:border-primary/15 hover:shadow-lg hover:shadow-primary/5"
         )}
       >
         {/* Accent glow line */}
         <div
-          className="absolute top-0 left-4 right-4 h-[2px] rounded-full opacity-60"
+          className="absolute top-0 left-6 right-6 h-px rounded-full opacity-40"
           style={{
             background: accentColor
               ? `linear-gradient(90deg, transparent, ${accentColor}, transparent)`
@@ -97,8 +96,8 @@ export function DashboardWidget({
             </button>
           )}
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="shrink-0 opacity-70">{icon}</span>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">
+            <span className="shrink-0 opacity-60">{icon}</span>
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground truncate">
               {title}
             </h3>
           </div>

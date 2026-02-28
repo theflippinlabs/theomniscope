@@ -22,18 +22,25 @@ import {
   Activity,
   LineChart,
   Settings2,
+  Brain,
+  Image,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMarketData } from "@/hooks/useMarketData";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { DashboardWidget, type WidgetSize } from "@/components/dashboard/DashboardWidget";
+import {
+  DashboardWidget,
+  type WidgetSize,
+} from "@/components/dashboard/DashboardWidget";
 import { PortfolioWidget } from "@/components/dashboard/PortfolioWidget";
 import { TokenTrackerWidget } from "@/components/dashboard/TokenTrackerWidget";
 import { QuickActionsWidget } from "@/components/dashboard/QuickActionsWidget";
 import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
 import { ActivityFeedWidget } from "@/components/dashboard/ActivityFeedWidget";
-import { AnalyticsWidget } from "@/components/dashboard/AnalyticsWidget";
+import { MarketChartWidget } from "@/components/dashboard/MarketChartWidget";
+import { NftSpotlightWidget } from "@/components/dashboard/NftSpotlightWidget";
+import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
 import avatarDefault from "@/assets/avatar-default.png";
 
 // ---- Widget registry ----
@@ -61,6 +68,13 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     size: "full",
     component: QuickActionsWidget,
   },
+  marketChart: {
+    title: "Live Market",
+    icon: <LineChart className="w-3.5 h-3.5" />,
+    size: "full",
+    accentColor: "hsl(var(--chart-cyan))",
+    component: MarketChartWidget,
+  },
   tokenTracker: {
     title: "Token Tracker",
     icon: <BarChart3 className="w-3.5 h-3.5" />,
@@ -69,23 +83,30 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     component: TokenTrackerWidget,
   },
   alerts: {
-    title: "Live Alerts",
+    title: "Smart Alerts",
     icon: <Bell className="w-3.5 h-3.5" />,
     size: "md",
     accentColor: "hsl(var(--danger))",
     component: AlertsWidget,
   },
-  analytics: {
-    title: "Analytics",
-    icon: <LineChart className="w-3.5 h-3.5" />,
+  nftSpotlight: {
+    title: "NFT Spotlight",
+    icon: <Image className="w-3.5 h-3.5" />,
     size: "sm",
     accentColor: "hsl(var(--warning))",
-    component: AnalyticsWidget,
+    component: NftSpotlightWidget,
+  },
+  aiInsight: {
+    title: "AI Insight",
+    icon: <Brain className="w-3.5 h-3.5" />,
+    size: "sm",
+    accentColor: "hsl(var(--primary))",
+    component: AiInsightWidget,
   },
   activity: {
-    title: "Wallet Activity",
+    title: "Activity Feed",
     icon: <Activity className="w-3.5 h-3.5" />,
-    size: "sm",
+    size: "full",
     component: ActivityFeedWidget,
   },
 };
@@ -93,9 +114,11 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
 const DEFAULT_WIDGET_ORDER = [
   "portfolio",
   "quickActions",
+  "marketChart",
   "tokenTracker",
   "alerts",
-  "analytics",
+  "nftSpotlight",
+  "aiInsight",
   "activity",
 ];
 
@@ -106,10 +129,11 @@ function loadWidgetOrder(): string[] {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as string[];
-      // Validate all IDs exist
       if (parsed.every((id) => id in WIDGET_REGISTRY)) return parsed;
     }
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
   return DEFAULT_WIDGET_ORDER;
 }
 
@@ -125,26 +149,24 @@ export default function CommandCenter() {
   const [widgetOrder, setWidgetOrder] = useState<string[]>(loadWidgetOrder);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // dnd-kit sensors – require some movement to avoid accidental drags
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 5 } })
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 300, tolerance: 5 },
+    })
   );
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-      setWidgetOrder((prev) => {
-        const oldIdx = prev.indexOf(active.id as string);
-        const newIdx = prev.indexOf(over.id as string);
-        const updated = arrayMove(prev, oldIdx, newIdx);
-        saveWidgetOrder(updated);
-        return updated;
-      });
-    },
-    []
-  );
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setWidgetOrder((prev) => {
+      const oldIdx = prev.indexOf(active.id as string);
+      const newIdx = prev.indexOf(over.id as string);
+      const updated = arrayMove(prev, oldIdx, newIdx);
+      saveWidgetOrder(updated);
+      return updated;
+    });
+  }, []);
 
   const removeWidget = useCallback((id: string) => {
     setWidgetOrder((prev) => {
@@ -160,13 +182,13 @@ export default function CommandCenter() {
     setIsEditMode(false);
   }, []);
 
-  // Current time greeting
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-5 pb-8 space-y-5">
-      {/* ---- Header ---- */}
+    <div className="max-w-2xl mx-auto px-4 pt-5 pb-8 space-y-4">
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -174,10 +196,12 @@ export default function CommandCenter() {
       >
         <Avatar className="w-11 h-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
           <AvatarImage src={avatarDefault} alt="User avatar" />
-          <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">OI</AvatarFallback>
+          <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+            OI
+          </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground">{greeting}</p>
+          <p className="text-[11px] text-muted-foreground">{greeting}</p>
           <h1 className="text-lg font-display font-bold tracking-tight truncate">
             Oracle Intel
           </h1>
@@ -207,7 +231,7 @@ export default function CommandCenter() {
         </div>
       </motion.div>
 
-      {/* ---- Edit Mode Banner ---- */}
+      {/* Edit Mode Banner */}
       <AnimatePresence>
         {isEditMode && (
           <motion.div
@@ -218,9 +242,14 @@ export default function CommandCenter() {
           >
             <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20">
               <p className="text-xs text-primary font-medium">
-                Drag widgets to rearrange • Tap ✕ to remove
+                Drag to rearrange • Tap ✕ to remove
               </p>
-              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={resetWidgets}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={resetWidgets}
+              >
                 Reset
               </Button>
             </div>
@@ -228,7 +257,7 @@ export default function CommandCenter() {
         )}
       </AnimatePresence>
 
-      {/* ---- Widget Grid ---- */}
+      {/* Widget Grid */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -259,7 +288,7 @@ export default function CommandCenter() {
         </SortableContext>
       </DndContext>
 
-      {/* ---- Add widgets back (when in edit mode and some removed) ---- */}
+      {/* Add widgets back */}
       <AnimatePresence>
         {isEditMode && widgetOrder.length < DEFAULT_WIDGET_ORDER.length && (
           <motion.div
@@ -272,7 +301,9 @@ export default function CommandCenter() {
               Available Widgets
             </p>
             <div className="flex flex-wrap gap-2">
-              {DEFAULT_WIDGET_ORDER.filter((id) => !widgetOrder.includes(id)).map((id) => {
+              {DEFAULT_WIDGET_ORDER.filter(
+                (id) => !widgetOrder.includes(id)
+              ).map((id) => {
                 const config = WIDGET_REGISTRY[id];
                 if (!config) return null;
                 return (
