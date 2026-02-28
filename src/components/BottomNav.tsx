@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Search, FolderOpen, Compass } from "lucide-react";
+import { LayoutDashboard, Search, FolderOpen, Compass, Settings } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { MoreSheet } from "@/components/MoreSheet";
 
@@ -20,6 +20,7 @@ export function BottomNav({ unreadAlerts = 0 }: BottomNavProps) {
     { path: "/lookup", label: "Investigate", icon: Search },
     { id: "hub", label: "Hub", icon: Compass },
     { path: "/cases", label: "Cases", icon: FolderOpen },
+    { path: "/profile", label: "Settings", icon: Settings },
   ];
 
   if (location.pathname.startsWith("/token/")) return null;
