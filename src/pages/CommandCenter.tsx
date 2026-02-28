@@ -203,7 +203,7 @@ export default function CommandCenter() {
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="max-w-2xl mx-auto px-3 pt-1.5 pb-2 space-y-2">
+    <div className="max-w-2xl mx-auto px-3 pt-1.5 pb-2 space-y-3">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
