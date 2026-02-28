@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.alert-scanner]
 verify_jwt = false
+
+[functions.cluster-engine]
+verify_jwt = false

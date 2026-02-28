@@ -22,10 +22,12 @@ import {
   useTokenBubblemap,
   computeTokenRiskFlags,
 } from "@/hooks/useTokenIntel";
+import { useTokenCluster } from "@/hooks/useClusterEngine";
 import ConcentrationCards from "@/components/token-intel/ConcentrationCards";
 import HolderTable from "@/components/token-intel/HolderTable";
 import Bubblemap from "@/components/token-intel/Bubblemap";
 import TokenRiskSignals from "@/components/token-intel/TokenRiskSignals";
+import ClusterPanel from "@/components/cluster/ClusterPanel";
 
 export default function TokenIntel() {
   const { address: paramAddress } = useParams<{ address: string }>();
@@ -51,6 +53,12 @@ export default function TokenIntel() {
     data: bubblemapData,
     isLoading: bubblemapLoading,
   } = useTokenBubblemap(activeAddress);
+
+  const {
+    data: clusterData,
+    isLoading: clusterLoading,
+    error: clusterError,
+  } = useTokenCluster(activeAddress, "cronos", 30, 7, isValidAddr);
 
   const riskFlags = computeTokenRiskFlags(
     holdersData?.metrics,
@@ -296,6 +304,15 @@ export default function TokenIntel() {
                   onInvestigate={investigateWallet}
                 />
               </div>
+
+              {/* Cluster Analysis */}
+              <ClusterPanel
+                data={clusterData}
+                isLoading={clusterLoading}
+                error={clusterError as Error | null}
+                onInvestigate={investigateWallet}
+                title="Holder Cluster Analysis"
+              />
             </motion.div>
           )}
         </AnimatePresence>

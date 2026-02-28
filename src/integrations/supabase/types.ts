@@ -133,6 +133,127 @@ export type Database = {
           },
         ]
       }
+      cluster_edges: {
+        Row: {
+          cluster_id: string
+          created_at: string
+          id: string
+          net_flow: number
+          source_address: string
+          target_address: string
+          time_window: string
+          tx_count: number
+          weight: number
+        }
+        Insert: {
+          cluster_id: string
+          created_at?: string
+          id?: string
+          net_flow?: number
+          source_address: string
+          target_address: string
+          time_window?: string
+          tx_count?: number
+          weight?: number
+        }
+        Update: {
+          cluster_id?: string
+          created_at?: string
+          id?: string
+          net_flow?: number
+          source_address?: string
+          target_address?: string
+          time_window?: string
+          tx_count?: number
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cluster_edges_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "clusters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cluster_members: {
+        Row: {
+          address: string
+          cluster_id: string
+          confidence: number
+          created_at: string
+          id: string
+          reasons: Json
+          role: string
+        }
+        Insert: {
+          address: string
+          cluster_id: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          reasons?: Json
+          role?: string
+        }
+        Update: {
+          address?: string
+          cluster_id?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          reasons?: Json
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cluster_members_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "clusters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clusters: {
+        Row: {
+          chain: string
+          confidence: number
+          created_at: string
+          id: string
+          label: string | null
+          member_count: number
+          seed_address: string
+          seed_type: string
+          top_signals: Json
+          updated_at: string
+        }
+        Insert: {
+          chain?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          member_count?: number
+          seed_address: string
+          seed_type?: string
+          top_signals?: Json
+          updated_at?: string
+        }
+        Update: {
+          chain?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          member_count?: number
+          seed_address?: string
+          seed_type?: string
+          top_signals?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invitation_codes: {
         Row: {
           code: string

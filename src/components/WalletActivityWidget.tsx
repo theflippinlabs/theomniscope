@@ -21,6 +21,8 @@ import {
   type NormalizedTransaction,
   type TransactionRiskFlag,
 } from "@/hooks/useWalletActivity";
+import { useWalletCluster } from "@/hooks/useClusterEngine";
+import ClusterPanel from "@/components/cluster/ClusterPanel";
 
 // --- Helpers ---
 
@@ -186,8 +188,14 @@ export default function WalletActivityWidget() {
     isFetching,
   } = useWalletActivity({
     address: activeAddress,
-    refetchInterval: 60_000, // auto-refresh every 60s
+    refetchInterval: 60_000,
   });
+
+  const {
+    data: clusterData,
+    isLoading: clusterLoading,
+    error: clusterError,
+  } = useWalletCluster(activeAddress, "cronos", 7, !!activeAddress);
 
   const flaggedCount =
     data?.transactions.filter((tx) => tx.riskFlags.length > 0).length ?? 0;
@@ -276,6 +284,18 @@ export default function WalletActivityWidget() {
               </AnimatePresence>
             </div>
           )}
+
+          {/* Cluster Panel */}
+          <ClusterPanel
+            data={clusterData}
+            isLoading={clusterLoading}
+            error={clusterError as Error | null}
+            onInvestigate={(addr) => {
+              setInputValue(addr);
+              setActiveAddress(addr);
+            }}
+            title="Wallet Cluster"
+          />
         </>
       )}
     </div>
