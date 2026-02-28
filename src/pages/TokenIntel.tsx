@@ -81,9 +81,7 @@ export default function TokenIntel() {
   };
 
   const investigateWallet = (walletAddr: string) => {
-    navigate(`/`);
-    // The Command Center has the wallet activity widget
-    // Future: deep-link to wallet detail page
+    navigate(`/wallet/${walletAddr}`);
   };
 
   return (
