@@ -68,30 +68,19 @@ export function MoreSheet({ open, onOpenChange }: MoreSheetProps) {
           </SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-4">
-          {sections.map((section) => (
-            <div key={section.title}>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2 px-1">
-                {section.title}
-              </p>
-              <div className="grid grid-cols-1 gap-1">
-                {section.items.map((item) => (
-                  <button
-                    key={item.path}
-                    onClick={() => go(item.path)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-accent/60 transition-colors text-left"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-muted/80 flex items-center justify-center shrink-0">
-                      <item.icon className="w-4 h-4 text-foreground/70" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-foreground">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{item.desc}</p>
-                    </div>
-                  </button>
-                ))}
+        <div className="grid grid-cols-2 gap-2">
+          {sections.flatMap((s) => s.items).map((item) => (
+            <button
+              key={item.path}
+              onClick={() => go(item.path)}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border/60 bg-muted/40 hover:bg-accent/60 transition-colors text-center"
+            >
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <item.icon className="w-5 h-5 text-primary" />
               </div>
-            </div>
+              <p className="text-xs font-medium text-foreground">{item.label}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">{item.desc}</p>
+            </button>
           ))}
 
           {isAdmin && (
