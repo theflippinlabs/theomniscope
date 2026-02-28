@@ -79,7 +79,7 @@ export default function WatchlistsPage() {
   };
 
   const handleInvestigate = (item: WatchlistItem) => {
-    if (item.type === "wallet") navigate(`/?wallet=${item.subject}`);
+    if (item.type === "wallet") navigate(`/wallet/${item.subject}`);
     else if (item.type === "token") navigate(`/lookup?q=${item.subject}`);
   };
 

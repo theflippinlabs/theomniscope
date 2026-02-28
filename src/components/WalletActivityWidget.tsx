@@ -166,19 +166,19 @@ function ErrorState({ message }: { message: string }) {
 
 // --- Main Widget ---
 
-export default function WalletActivityWidget() {
+export default function WalletActivityWidget({ initialAddress }: { initialAddress?: string }) {
   const [searchParams] = useSearchParams();
   const [inputValue, setInputValue] = useState("");
   const [activeAddress, setActiveAddress] = useState("");
 
-  // Auto-fill from URL query param ?wallet=0x...
+  // Auto-fill from prop or URL query param ?wallet=0x...
   useEffect(() => {
-    const walletParam = searchParams.get("wallet");
-    if (walletParam && /^0x[a-fA-F0-9]{40}$/.test(walletParam)) {
-      setInputValue(walletParam);
-      setActiveAddress(walletParam);
+    const addr = initialAddress || searchParams.get("wallet");
+    if (addr && /^0x[a-fA-F0-9]{40}$/.test(addr)) {
+      setInputValue(addr);
+      setActiveAddress(addr);
     }
-  }, [searchParams]);
+  }, [initialAddress, searchParams]);
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
