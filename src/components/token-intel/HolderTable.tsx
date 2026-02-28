@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Copy, CheckCircle, ExternalLink, Search as SearchIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { shortenAddress } from "@/lib/formatters";
 import type { TokenHolder } from "@/lib/tokenIntel.types";
@@ -104,14 +104,33 @@ function HolderCard({
 }
 
 export default function HolderTable({ holders, loading, estimated, onInvestigate }: Props) {
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
-    dragFree: true,
+    slidesToScroll: 1,
+    skipSnaps: false,
   });
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      setCanScrollPrev(emblaApi.canScrollPrev());
+      setCanScrollNext(emblaApi.canScrollNext());
+    };
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+      emblaApi.off("reInit", onSelect);
+    };
+  }, [emblaApi]);
 
   if (loading) {
     return (
@@ -150,13 +169,15 @@ export default function HolderTable({ holders, loading, estimated, onInvestigate
         <div className="flex items-center gap-1">
           <button
             onClick={scrollPrev}
-            className="w-6 h-6 rounded-md bg-secondary/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            disabled={!canScrollPrev}
+            className="w-6 h-6 rounded-md bg-secondary/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-30"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={scrollNext}
-            className="w-6 h-6 rounded-md bg-secondary/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            disabled={!canScrollNext}
+            className="w-6 h-6 rounded-md bg-secondary/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-30"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -165,14 +186,15 @@ export default function HolderTable({ holders, loading, estimated, onInvestigate
 
       {/* Carousel */}
       <div ref={emblaRef} className="overflow-hidden -mx-1">
-        <div className="flex gap-2.5 px-1">
+        <div className="flex">
           {top10.map((holder, idx) => (
-            <HolderCard
-              key={holder.address}
-              holder={holder}
-              rank={idx + 1}
-              onInvestigate={onInvestigate}
-            />
+            <div key={holder.address} className="flex-[0_0_210px] min-w-0 pl-2.5 first:pl-1">
+              <HolderCard
+                holder={holder}
+                rank={idx + 1}
+                onInvestigate={onInvestigate}
+              />
+            </div>
           ))}
         </div>
       </div>
