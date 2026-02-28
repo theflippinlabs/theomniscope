@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { motion } from "framer-motion";
 import {
   Mail, Lock, Plus, Copy, Check, Trash2, ArrowLeft,
@@ -261,26 +262,38 @@ function InvitationCodes() {
 
   return (
     <div className="space-y-2">
-      <Button className="w-full gap-2 mb-2" size="sm" onClick={createCode} disabled={loading}>
-        <Plus className="w-3 h-3" />
-        {t("admin.generate")}
-      </Button>
-      {codes.map((c) => (
-        <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-          <span className="font-mono text-xs font-semibold flex-1 tracking-wider">{c.code}</span>
-          <Badge className={c.is_used ? "bg-success/10 text-success border-success/20 text-[9px]" : "bg-muted text-muted-foreground border-border text-[9px]"}>
-            {c.is_used ? t("admin.used") : t("admin.available")}
-          </Badge>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyCode(c.code, c.id)}>
-            {copiedId === c.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteCode(c.id)}>
-            <Trash2 className="w-3.5 h-3.5 text-danger" />
-          </Button>
-        </div>
-      ))}
-      {codes.length === 0 && (
+      <div className="flex items-center justify-between">
+        <Button className="gap-2" size="sm" onClick={createCode} disabled={loading}>
+          <Plus className="w-3 h-3" />
+          {t("admin.generate")}
+        </Button>
+        <span className="text-[10px] text-muted-foreground">{codes.length} code{codes.length !== 1 ? "s" : ""}</span>
+      </div>
+      {codes.length === 0 ? (
         <p className="text-center text-xs text-muted-foreground py-6">{t("admin.noCodes")}</p>
+      ) : (
+        <Carousel opts={{ align: "start" }} className="w-full">
+          <CarouselContent className="-ml-2">
+            {codes.map((c) => (
+              <CarouselItem key={c.id} className="pl-2 basis-[85%]">
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-card">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-mono text-xs font-semibold tracking-wider block">{c.code}</span>
+                    <Badge className={`mt-1 ${c.is_used ? "bg-success/10 text-success border-success/20 text-[9px]" : "bg-muted text-muted-foreground border-border text-[9px]"}`}>
+                      {c.is_used ? t("admin.used") : t("admin.available")}
+                    </Badge>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copyCode(c.code, c.id)}>
+                    {copiedId === c.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => deleteCode(c.id)}>
+                    <Trash2 className="w-3.5 h-3.5 text-danger" />
+                  </Button>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
       )}
     </div>
   );
@@ -342,7 +355,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 max-w-lg mx-auto">
+    <div className="min-h-screen bg-background px-4 pb-4 max-w-lg mx-auto" style={{ paddingTop: "max(env(safe-area-inset-top, 16px), 16px)" }}>
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
           <ArrowLeft className="w-5 h-5" />
