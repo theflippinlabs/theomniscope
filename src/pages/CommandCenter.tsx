@@ -34,10 +34,11 @@ import {
   type WidgetSize,
 } from "@/components/dashboard/DashboardWidget";
 import { PortfolioWidget } from "@/components/dashboard/PortfolioWidget";
+import { PortfolioWidgetExpanded } from "@/components/dashboard/PortfolioWidgetExpanded";
 import { TokenTrackerWidget } from "@/components/dashboard/TokenTrackerWidget";
 import { QuickActionsWidget } from "@/components/dashboard/QuickActionsWidget";
 import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
-import { ActivityFeedWidget } from "@/components/dashboard/ActivityFeedWidget";
+import { AlertsWidgetExpanded } from "@/components/dashboard/AlertsWidgetExpanded";
 import { MarketChartWidget } from "@/components/dashboard/MarketChartWidget";
 import { NftSpotlightWidget } from "@/components/dashboard/NftSpotlightWidget";
 import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
@@ -52,74 +53,62 @@ interface WidgetConfig {
   size: WidgetSize;
   accentColor?: string;
   component: React.ComponentType;
+  expandedComponent?: React.ComponentType;
 }
 
 const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
   portfolio: {
     title: "Portfolio",
-    icon: <Wallet className="w-3.5 h-3.5" />,
+    icon: <Wallet className="w-3 h-3" />,
     size: "full",
     accentColor: "hsl(var(--primary))",
     component: PortfolioWidget,
+    expandedComponent: PortfolioWidgetExpanded,
   },
   quickActions: {
     title: "Quick Actions",
-    icon: <Zap className="w-3.5 h-3.5" />,
+    icon: <Zap className="w-3 h-3" />,
     size: "full",
     component: QuickActionsWidget,
   },
-  marketChart: {
-    title: "Live Market",
-    icon: <LineChart className="w-3.5 h-3.5" />,
-    size: "full",
-    accentColor: "hsl(var(--chart-cyan))",
-    component: MarketChartWidget,
-  },
   tokenTracker: {
-    title: "Token Tracker",
-    icon: <BarChart3 className="w-3.5 h-3.5" />,
-    size: "md",
+    title: "Tokens",
+    icon: <BarChart3 className="w-3 h-3" />,
+    size: "sm",
     accentColor: "hsl(var(--success))",
     component: TokenTrackerWidget,
   },
+  marketChart: {
+    title: "Market",
+    icon: <LineChart className="w-3 h-3" />,
+    size: "sm",
+    accentColor: "hsl(var(--chart-cyan))",
+    component: MarketChartWidget,
+  },
   alerts: {
-    title: "Smart Alerts",
-    icon: <Bell className="w-3.5 h-3.5" />,
-    size: "md",
+    title: "Alerts",
+    icon: <Bell className="w-3 h-3" />,
+    size: "sm",
     accentColor: "hsl(var(--danger))",
     component: AlertsWidget,
-  },
-  nftSpotlight: {
-    title: "NFT Spotlight",
-    icon: <Image className="w-3.5 h-3.5" />,
-    size: "sm",
-    accentColor: "hsl(var(--warning))",
-    component: NftSpotlightWidget,
+    expandedComponent: AlertsWidgetExpanded,
   },
   aiInsight: {
     title: "AI Insight",
-    icon: <Brain className="w-3.5 h-3.5" />,
+    icon: <Brain className="w-3 h-3" />,
     size: "sm",
     accentColor: "hsl(var(--primary))",
     component: AiInsightWidget,
-  },
-  activity: {
-    title: "Activity Feed",
-    icon: <Activity className="w-3.5 h-3.5" />,
-    size: "full",
-    component: ActivityFeedWidget,
   },
 };
 
 const DEFAULT_WIDGET_ORDER = [
   "portfolio",
   "quickActions",
-  "marketChart",
   "tokenTracker",
+  "marketChart",
   "alerts",
-  "nftSpotlight",
   "aiInsight",
-  "activity",
 ];
 
 const STORAGE_KEY = "oracle-dashboard-widgets";
@@ -187,35 +176,35 @@ export default function CommandCenter() {
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-5 pb-8 space-y-4">
+    <div className="max-w-2xl mx-auto px-3 pt-4 pb-4 space-y-2.5">
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-3"
+        className="flex items-center gap-2.5"
       >
-        <Avatar className="w-11 h-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+        <Avatar className="w-9 h-9 ring-2 ring-primary/20 ring-offset-1 ring-offset-background">
           <AvatarImage src={avatarDefault} alt="User avatar" />
-          <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+          <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
             OI
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-muted-foreground">{greeting}</p>
-          <h1 className="text-lg font-display font-bold tracking-tight truncate">
+          <p className="text-[10px] text-muted-foreground">{greeting}</p>
+          <h1 className="text-base font-display font-bold tracking-tight truncate">
             Oracle Intel
           </h1>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="icon"
-            className="relative w-9 h-9"
+            className="relative w-8 h-8"
             onClick={() => navigate("/server-alerts")}
           >
-            <Bell className="w-4.5 h-4.5" />
+            <Bell className="w-4 h-4" />
             {unreadAlerts > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-danger text-[9px] font-bold flex items-center justify-center text-danger-foreground">
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-danger text-[8px] font-bold flex items-center justify-center text-danger-foreground">
                 {unreadAlerts > 9 ? "9+" : unreadAlerts}
               </span>
             )}
@@ -223,10 +212,10 @@ export default function CommandCenter() {
           <Button
             variant={isEditMode ? "default" : "ghost"}
             size="icon"
-            className="w-9 h-9"
+            className="w-8 h-8"
             onClick={() => setIsEditMode(!isEditMode)}
           >
-            <Settings2 className="w-4.5 h-4.5" />
+            <Settings2 className="w-4 h-4" />
           </Button>
         </div>
       </motion.div>
@@ -240,14 +229,14 @@ export default function CommandCenter() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20">
-              <p className="text-xs text-primary font-medium">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-primary/10 border border-primary/20">
+              <p className="text-[10px] text-primary font-medium">
                 Drag to rearrange • Tap ✕ to remove
               </p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs h-7"
+                className="text-[10px] h-6"
                 onClick={resetWidgets}
               >
                 Reset
@@ -264,11 +253,12 @@ export default function CommandCenter() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {widgetOrder.map((widgetId) => {
               const config = WIDGET_REGISTRY[widgetId];
               if (!config) return null;
               const Component = config.component;
+              const ExpandedComponent = config.expandedComponent;
               return (
                 <DashboardWidget
                   key={widgetId}
@@ -279,6 +269,7 @@ export default function CommandCenter() {
                   isEditMode={isEditMode}
                   onRemove={() => removeWidget(widgetId)}
                   accentColor={config.accentColor}
+                  expandedContent={ExpandedComponent ? <ExpandedComponent /> : undefined}
                 >
                   <Component />
                 </DashboardWidget>
@@ -295,12 +286,12 @@ export default function CommandCenter() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="space-y-2"
+            className="space-y-1.5"
           >
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              Available Widgets
+            <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Available
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {DEFAULT_WIDGET_ORDER.filter(
                 (id) => !widgetOrder.includes(id)
               ).map((id) => {
@@ -311,7 +302,7 @@ export default function CommandCenter() {
                     key={id}
                     variant="outline"
                     size="sm"
-                    className="text-xs gap-1.5 h-8"
+                    className="text-[10px] gap-1 h-7"
                     onClick={() => {
                       setWidgetOrder((prev) => {
                         const updated = [...prev, id];
