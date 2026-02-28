@@ -99,31 +99,25 @@ export function AiAssistant() {
 
   return (
     <>
-      {/* FAB — hidden when opened from header avatar */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-4 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors active:scale-95"
-          >
-            <Bot className="w-5 h-5" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Panel */}
+      {/* Panel — centered on screen */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 100, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 100, scale: 0.95 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-20 right-3 left-3 sm:left-auto sm:w-[380px] z-50 max-h-[70vh] flex flex-col rounded-2xl border border-white/[0.06] bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden"
-          >
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed inset-x-3 top-[12%] bottom-[12%] sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[400px] sm:max-h-[70vh] z-50 flex flex-col rounded-2xl border border-white/[0.08] bg-card/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
+            >
             {/* Header */}
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-muted/30">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -217,7 +211,8 @@ export function AiAssistant() {
                 <Send className="w-3.5 h-3.5" />
               </Button>
             </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>
