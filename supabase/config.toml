@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.cluster-engine]
 verify_jwt = false
+
+[functions.cases-api]
+verify_jwt = false
+
+[functions.report-generator]
+verify_jwt = false

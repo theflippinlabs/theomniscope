@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, Filter, Check, X, Clock, Zap, ShieldAlert, Eye, ChevronRight,
   ExternalLink, RefreshCw, Loader2, AlertTriangle, Search, ArrowRight,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,9 @@ import {
   useAlertsFeed, useUpdateAlertStatus, useRunAlertScanner,
   type ServerAlert,
 } from "@/hooks/useAlertsFeed";
+import { useCreateCaseFromAlert } from "@/hooks/useCases";
 import { shortenAddress, timeAgo } from "@/lib/formatters";
+import { useToast } from "@/hooks/use-toast";
 
 type SeverityFilter = "all" | "critical" | "high" | "medium" | "low";
 type StatusFilter = "all" | "new" | "triaged" | "closed";
@@ -275,6 +278,29 @@ function ServerAlertItem({ alert, index, onClick }: { alert: ServerAlert; index:
   );
 }
 
+function CreateCaseButton({ alertId }: { alertId: string }) {
+  const navigate = useNavigate();
+  const createCase = useCreateCaseFromAlert();
+  const { toast } = useToast();
+
+  const handleCreate = async () => {
+    try {
+      const result = await createCase.mutateAsync(alertId);
+      toast({ title: "Case created", description: `${result.items_added} evidence items attached.` });
+      navigate(`/cases/${result.case_id}`);
+    } catch (err) {
+      toast({ title: "Failed", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleCreate} disabled={createCase.isPending} className="text-xs gap-1.5 w-full">
+      {createCase.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderOpen className="w-3.5 h-3.5" />}
+      Create Case from Alert
+    </Button>
+  );
+}
+
 function AlertDetailDrawer({
   alert,
   onUpdateStatus,
@@ -363,6 +389,7 @@ function AlertDetailDrawer({
               </Button>
             )}
           </div>
+          <CreateCaseButton alertId={alert.id} />
         </div>
       </div>
     </div>

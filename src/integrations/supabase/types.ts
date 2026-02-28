@@ -133,6 +133,147 @@ export type Database = {
           },
         ]
       }
+      case_items: {
+        Row: {
+          case_id: string
+          chain: string
+          created_at: string
+          data: Json
+          id: string
+          item_type: string
+          ref: string
+          title: string | null
+        }
+        Insert: {
+          case_id: string
+          chain?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          item_type: string
+          ref: string
+          title?: string | null
+        }
+        Update: {
+          case_id?: string
+          chain?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          item_type?: string
+          ref?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_items_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_notes: {
+        Row: {
+          body: string
+          case_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          body: string
+          case_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          body?: string
+          case_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_notes_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_share_links: {
+        Row: {
+          case_id: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          public_token: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          public_token?: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          public_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_share_links_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          chain: string
+          created_at: string
+          description: string
+          id: string
+          priority: string
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          chain?: string
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          chain?: string
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       cluster_edges: {
         Row: {
           cluster_id: string
@@ -280,6 +421,47 @@ export type Database = {
           used_at?: string | null
         }
         Relationships: []
+      }
+      report_jobs: {
+        Row: {
+          case_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          output_json_url: string | null
+          output_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          output_json_url?: string | null
+          output_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          output_json_url?: string | null
+          output_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_jobs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       watchlists: {
         Row: {

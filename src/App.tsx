@@ -23,6 +23,9 @@ import TokenIntel from "@/pages/TokenIntel";
 import WatchlistsPage from "@/pages/WatchlistsPage";
 import ServerAlertsPage from "@/pages/ServerAlertsPage";
 import AlertRulesPage from "@/pages/AlertRulesPage";
+import CasesListPage from "@/pages/CasesListPage";
+import CaseDetailPage from "@/pages/CaseDetailPage";
+import SharedCasePage from "@/pages/SharedCasePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +39,7 @@ function AppContent() {
     <BrowserRouter>
       <Routes>
         <Route path="/admin" element={<Admin />} />
+        <Route path="/shared-case/:token" element={<SharedCasePage />} />
         <Route
           path="*"
           element={
@@ -57,6 +61,8 @@ function AppContent() {
                   <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/server-alerts" element={<ServerAlertsPage />} />
                   <Route path="/alert-rules" element={<AlertRulesPage />} />
+                  <Route path="/cases" element={<CasesListPage />} />
+                  <Route path="/cases/:id" element={<CaseDetailPage />} />
                   <Route path="/profile" element={<Profile prefs={prefs} onUpdatePrefs={updatePrefs} />} />
                 </Route>
                 <Route path="/token/:id" element={<TokenDetail />} />
