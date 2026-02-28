@@ -202,11 +202,12 @@ export default function CommandCenter() {
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="max-w-2xl mx-auto px-3 pt-1 pb-2 space-y-2">
+    <div className="max-w-2xl mx-auto px-3 pt-1.5 pb-2 space-y-2">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
         className="flex items-center gap-2.5"
       >
         <Avatar className="w-9 h-9 ring-2 ring-primary/20 ring-offset-1 ring-offset-background">

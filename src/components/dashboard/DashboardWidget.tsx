@@ -68,6 +68,8 @@ export function DashboardWidget({
     }
   };
 
+  const isExpandable = !isEditMode && !!expandedContent;
+
   return (
     <>
       <motion.div
@@ -81,7 +83,7 @@ export function DashboardWidget({
           y: 0,
         }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        whileTap={!isEditMode && expandedContent ? { scale: 0.97 } : undefined}
+        whileTap={isExpandable ? { scale: 0.97 } : undefined}
         className={cn(sizeClasses[size], "group relative", className)}
       >
         <div
@@ -89,29 +91,27 @@ export function DashboardWidget({
           className={cn(
             "relative h-full rounded-2xl border overflow-hidden",
             "transition-all duration-200",
-            bgClass || "bg-card/90 backdrop-blur-md",
-            // Card depth & contrast
-            "border-border/30",
-            "shadow-lg shadow-black/10",
-            // Glow on hover/active
+            bgClass || "bg-card/80 backdrop-blur-md",
+            "border-white/[0.06]",
+            "shadow-lg shadow-black/15",
             isDragging && "shadow-2xl shadow-primary/15 ring-2 ring-primary/30 z-50",
             isEditMode && "ring-1 ring-dashed ring-primary/20",
-            !isDragging && !isEditMode && expandedContent &&
-              "cursor-pointer active:shadow-primary/10 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/8"
+            isExpandable &&
+              "cursor-pointer active:shadow-primary/10 hover:border-white/[0.1] hover:shadow-xl"
           )}
         >
-          {/* Inner top highlight */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/8 to-transparent" />
+          {/* Inner top highlight — glass shine */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
           {/* Accent glow line */}
-          <div
-            className="absolute top-0 left-4 right-4 h-px rounded-full opacity-50"
-            style={{
-              background: accentColor
-                ? `linear-gradient(90deg, transparent, ${accentColor}, transparent)`
-                : "linear-gradient(90deg, transparent, hsl(var(--primary)), transparent)",
-            }}
-          />
+          {accentColor && (
+            <div
+              className="absolute top-0 left-4 right-4 h-px rounded-full opacity-40"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
+              }}
+            />
+          )}
 
           {/* Header */}
           <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1">
@@ -125,13 +125,13 @@ export function DashboardWidget({
               </button>
             )}
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <span className="shrink-0 opacity-70">{icon}</span>
+              <span className="shrink-0 opacity-60">{icon}</span>
               <h3 className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground truncate">
                 {title}
               </h3>
             </div>
-            {!isEditMode && expandedContent && (
-              <ChevronRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary/60 transition-colors" />
+            {isExpandable && (
+              <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-primary/50 transition-colors" />
             )}
             {isEditMode && onRemove && (
               <button
@@ -144,7 +144,7 @@ export function DashboardWidget({
           </div>
 
           {/* Content */}
-          <div className="px-3 pb-2.5">{children}</div>
+          <div className="px-3 pb-3">{children}</div>
         </div>
       </motion.div>
 
@@ -154,14 +154,15 @@ export function DashboardWidget({
           <Dialog open={modalOpen} onOpenChange={setModalOpen}>
             <DialogContent
               className={cn(
-                "max-w-[95vw] sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border-border/30",
+                "max-w-[95vw] sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl",
+                "border-white/[0.06]",
                 bgClass || "bg-card",
-                "shadow-2xl shadow-black/30"
+                "shadow-2xl shadow-black/40 backdrop-blur-xl"
               )}
             >
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-sm">
-                  <span className="opacity-70">{icon}</span>
+                  <span className="opacity-60">{icon}</span>
                   {title}
                 </DialogTitle>
               </DialogHeader>
