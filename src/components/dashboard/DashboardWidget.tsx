@@ -18,6 +18,7 @@ interface DashboardWidgetProps {
   onRemove?: () => void;
   className?: string;
   accentColor?: string;
+  bgClass?: string;
 }
 
 const sizeClasses: Record<WidgetSize, string> = {
@@ -38,6 +39,7 @@ export function DashboardWidget({
   onRemove,
   className,
   accentColor,
+  bgClass,
 }: DashboardWidgetProps) {
   const [expanded, setExpanded] = useState(false);
   const {
@@ -81,8 +83,9 @@ export function DashboardWidget({
       <div
         onClick={handleClick}
         className={cn(
-          "relative h-full rounded-2xl border border-border/40 bg-card/90 backdrop-blur-md overflow-hidden",
+          "relative h-full rounded-2xl border border-border/40 overflow-hidden",
           "transition-all duration-300",
+          bgClass || "bg-card/90 backdrop-blur-md",
           isDragging && "shadow-2xl shadow-primary/10 ring-2 ring-primary/30 z-50",
           isEditMode && "ring-1 ring-dashed ring-primary/20",
           !isDragging && !isEditMode && expandedContent && "cursor-pointer hover:border-primary/15 hover:shadow-lg hover:shadow-primary/5"

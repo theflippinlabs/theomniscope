@@ -52,6 +52,7 @@ interface WidgetConfig {
   icon: React.ReactNode;
   size: WidgetSize;
   accentColor?: string;
+  bgClass?: string;
   component: React.ComponentType;
   expandedComponent?: React.ComponentType;
 }
@@ -62,6 +63,7 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     icon: <Wallet className="w-3 h-3" />,
     size: "full",
     accentColor: "hsl(var(--primary))",
+    bgClass: "bg-widget-portfolio",
     component: PortfolioWidget,
     expandedComponent: PortfolioWidgetExpanded,
   },
@@ -69,6 +71,7 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     title: "Quick Actions",
     icon: <Zap className="w-3 h-3" />,
     size: "full",
+    bgClass: "bg-widget-actions",
     component: QuickActionsWidget,
   },
   tokenTracker: {
@@ -76,6 +79,7 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     icon: <BarChart3 className="w-3 h-3" />,
     size: "sm",
     accentColor: "hsl(var(--success))",
+    bgClass: "bg-widget-tokens",
     component: TokenTrackerWidget,
   },
   marketChart: {
@@ -83,6 +87,7 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     icon: <LineChart className="w-3 h-3" />,
     size: "sm",
     accentColor: "hsl(var(--chart-cyan))",
+    bgClass: "bg-widget-market",
     component: MarketChartWidget,
   },
   alerts: {
@@ -90,6 +95,7 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     icon: <Bell className="w-3 h-3" />,
     size: "sm",
     accentColor: "hsl(var(--danger))",
+    bgClass: "bg-widget-alerts",
     component: AlertsWidget,
     expandedComponent: AlertsWidgetExpanded,
   },
@@ -98,6 +104,7 @@ const WIDGET_REGISTRY: Record<string, Omit<WidgetConfig, "id">> = {
     icon: <Brain className="w-3 h-3" />,
     size: "sm",
     accentColor: "hsl(var(--primary))",
+    bgClass: "bg-widget-ai",
     component: AiInsightWidget,
   },
 };
@@ -269,6 +276,7 @@ export default function CommandCenter() {
                   isEditMode={isEditMode}
                   onRemove={() => removeWidget(widgetId)}
                   accentColor={config.accentColor}
+                  bgClass={config.bgClass}
                   expandedContent={ExpandedComponent ? <ExpandedComponent /> : undefined}
                 >
                   <Component />

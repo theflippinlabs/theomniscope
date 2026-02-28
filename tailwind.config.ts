@@ -74,6 +74,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        widget: {
+          portfolio: "hsl(var(--widget-portfolio))",
+          actions: "hsl(var(--widget-actions))",
+          tokens: "hsl(var(--widget-tokens))",
+          market: "hsl(var(--widget-market))",
+          alerts: "hsl(var(--widget-alerts))",
+          ai: "hsl(var(--widget-ai))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

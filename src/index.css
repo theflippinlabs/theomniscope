@@ -64,6 +64,14 @@
     --glow-success: 152 72% 38%;
     --glow-danger: 0 80% 55%;
 
+    /* Widget accent backgrounds */
+    --widget-portfolio: 215 85% 96%;
+    --widget-actions: 195 60% 95%;
+    --widget-tokens: 152 50% 95%;
+    --widget-market: 195 70% 94%;
+    --widget-alerts: 30 80% 95%;
+    --widget-ai: 270 60% 96%;
+
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 15% 40%;
     --sidebar-primary: 210 100% 50%;
@@ -119,6 +127,14 @@
     --glow-primary: 195 95% 50%;
     --glow-success: 152 72% 42%;
     --glow-danger: 0 80% 58%;
+
+    /* Widget accent backgrounds */
+    --widget-portfolio: 215 50% 12%;
+    --widget-actions: 195 40% 10%;
+    --widget-tokens: 152 35% 10%;
+    --widget-market: 195 45% 11%;
+    --widget-alerts: 30 40% 11%;
+    --widget-ai: 270 35% 12%;
 
     --sidebar-background: 220 25% 8%;
     --sidebar-foreground: 215 15% 65%;
