@@ -6,6 +6,7 @@ import { IntelligencePanel } from "@/components/oracle/IntelligencePanel";
 import { AgentActivityPanel } from "@/components/oracle/AgentActivity";
 import { FindingsList } from "@/components/oracle/FindingsList";
 import { WhyThisScore } from "@/components/oracle/WhyThisScore";
+import { DriftPanel } from "@/components/oracle/DriftPanel";
 import { Sparkline } from "@/components/oracle/Sparkline";
 import {
   MetricCard,
@@ -160,6 +161,10 @@ export default function OracleNFTMonitor() {
 
         <div className="space-y-6">
           <AgentActivityPanel outputs={report.agentOutputs} />
+          <DriftPanel
+            entityIdentifier={coll.contract}
+            entityLabel={coll.name}
+          />
           <WhyThisScore breakdown={report.breakdown} />
           <OracleCard className="p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">

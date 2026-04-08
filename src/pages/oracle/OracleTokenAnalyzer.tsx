@@ -6,6 +6,7 @@ import { IntelligencePanel } from "@/components/oracle/IntelligencePanel";
 import { AgentActivityPanel } from "@/components/oracle/AgentActivity";
 import { FindingsList } from "@/components/oracle/FindingsList";
 import { WhyThisScore } from "@/components/oracle/WhyThisScore";
+import { DriftPanel } from "@/components/oracle/DriftPanel";
 import {
   MetricCard,
   OracleCard,
@@ -170,6 +171,10 @@ export default function OracleTokenAnalyzer() {
 
         <div className="space-y-6">
           <AgentActivityPanel outputs={report.agentOutputs} />
+          <DriftPanel
+            entityIdentifier={token.address}
+            entityLabel={token.name}
+          />
           <WhyThisScore breakdown={report.breakdown} />
 
           <OracleCard className="p-5">
