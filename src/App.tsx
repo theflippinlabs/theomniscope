@@ -3,76 +3,61 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useState } from "react";
-import { useUserPreferences } from "@/lib/userPreferences";
-import { useMarketData } from "@/hooks/useMarketData";
-import { AppShell } from "@/components/AppShell";
 import { I18nProvider } from "@/lib/i18n";
-import InvitationGate from "@/components/InvitationGate";
-import Onboarding from "@/pages/Onboarding";
-import Radar from "@/pages/Radar";
-import Opportunities from "@/pages/Opportunities";
-import AlertsPage from "@/pages/AlertsPage";
-import Profile from "@/pages/Profile";
-import TokenDetail from "@/pages/TokenDetail";
-import NewListings from "@/pages/NewListings";
-import Lookup from "@/pages/Lookup";
-import Admin from "@/pages/Admin";
-import CommandCenter from "@/pages/CommandCenter";
-import TokenIntel from "@/pages/TokenIntel";
-import WatchlistsPage from "@/pages/WatchlistsPage";
-import ServerAlertsPage from "@/pages/ServerAlertsPage";
-import AlertRulesPage from "@/pages/AlertRulesPage";
-import CasesListPage from "@/pages/CasesListPage";
-import CaseDetailPage from "@/pages/CaseDetailPage";
-import SharedCasePage from "@/pages/SharedCasePage";
-import WalletDetail from "@/pages/WalletDetail";
+
+// Oracle Sentinel — public surface
+import OracleLanding from "@/pages/oracle/OracleLanding";
+import OracleMethodology from "@/pages/oracle/OracleMethodology";
+import OracleSecurity from "@/pages/oracle/OracleSecurity";
+import OracleTransparency from "@/pages/oracle/OracleTransparency";
+import OracleLegal from "@/pages/oracle/OracleLegal";
+
+// Oracle Sentinel — command center surface
+import { OracleAppShell } from "@/components/oracle/OracleAppShell";
+import OracleCommand from "@/pages/oracle/OracleCommand";
+import OracleWalletAnalyzer from "@/pages/oracle/OracleWalletAnalyzer";
+import OracleTokenAnalyzer from "@/pages/oracle/OracleTokenAnalyzer";
+import OracleNFTMonitor from "@/pages/oracle/OracleNFTMonitor";
+import OracleSignals from "@/pages/oracle/OracleSignals";
+import OracleInvestigations from "@/pages/oracle/OracleInvestigations";
+import OracleReports from "@/pages/oracle/OracleReports";
+import OracleAlerts from "@/pages/oracle/OracleAlerts";
+import OracleHistory from "@/pages/oracle/OracleHistory";
+import OracleSettings from "@/pages/oracle/OracleSettings";
+import OracleAnalyze from "@/pages/oracle/OracleAnalyze";
+
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { prefs, updatePrefs } = useUserPreferences();
-  const { unreadAlerts } = useMarketData();
-  const [hasAccess, setHasAccess] = useState(false);
-
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/shared-case/:token" element={<SharedCasePage />} />
-        <Route
-          path="*"
-          element={
-            !hasAccess ? (
-              <InvitationGate onGranted={() => setHasAccess(true)} />
-            ) : !prefs.onboardingComplete ? (
-              <Onboarding onComplete={updatePrefs} />
-            ) : (
-              <Routes>
-                <Route element={<AppShell unreadAlerts={unreadAlerts} />}>
-                  <Route path="/" element={<CommandCenter />} />
-                  <Route path="/radar" element={<Radar prefs={prefs} />} />
-                  <Route path="/new-listings" element={<NewListings />} />
-                  <Route path="/lookup" element={<Lookup />} />
-                  <Route path="/intel" element={<TokenIntel />} />
-                  <Route path="/intel/:address" element={<TokenIntel />} />
-                  <Route path="/opportunities" element={<Opportunities prefs={prefs} />} />
-                  <Route path="/watchlists" element={<WatchlistsPage />} />
-                  <Route path="/wallet/:address" element={<WalletDetail />} />
-                  <Route path="/alerts" element={<AlertsPage />} />
-                  <Route path="/server-alerts" element={<ServerAlertsPage />} />
-                  <Route path="/alert-rules" element={<AlertRulesPage />} />
-                  <Route path="/cases" element={<CasesListPage />} />
-                  <Route path="/cases/:id" element={<CaseDetailPage />} />
-                  <Route path="/profile" element={<Profile prefs={prefs} onUpdatePrefs={updatePrefs} />} />
-                </Route>
-                <Route path="/token/:id" element={<TokenDetail />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            )
-          }
-        />
+        {/* Public marketing / trust surface */}
+        <Route path="/" element={<OracleLanding />} />
+        <Route path="/methodology" element={<OracleMethodology />} />
+        <Route path="/security" element={<OracleSecurity />} />
+        <Route path="/transparency" element={<OracleTransparency />} />
+        <Route path="/legal" element={<OracleLegal />} />
+
+        {/* Oracle Sentinel command surface */}
+        <Route path="/app" element={<OracleAppShell />}>
+          <Route index element={<OracleCommand />} />
+          <Route path="command" element={<OracleCommand />} />
+          <Route path="analyze" element={<OracleAnalyze />} />
+          <Route path="wallet" element={<OracleWalletAnalyzer />} />
+          <Route path="token" element={<OracleTokenAnalyzer />} />
+          <Route path="nft" element={<OracleNFTMonitor />} />
+          <Route path="signals" element={<OracleSignals />} />
+          <Route path="investigations" element={<OracleInvestigations />} />
+          <Route path="reports" element={<OracleReports />} />
+          <Route path="alerts" element={<OracleAlerts />} />
+          <Route path="history" element={<OracleHistory />} />
+          <Route path="settings" element={<OracleSettings />} />
+        </Route>
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
