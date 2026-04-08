@@ -9,6 +9,14 @@ export * from "./types";
 export * from "./scoring";
 export * from "./conflicts";
 export {
+  prioritizeFindings,
+  reduceAlertNoise,
+  alertSummaryFrom,
+  buildExecutiveSummary,
+  buildWhyThisMatters,
+  normalizeInvestigation,
+} from "./normalize";
+export {
   CommandBrain,
   defaultCommandBrain,
   investigate,

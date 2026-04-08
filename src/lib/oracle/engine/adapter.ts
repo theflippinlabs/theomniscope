@@ -17,6 +17,7 @@ import type {
   ScoreBreakdown as LegacyScoreBreakdown,
   Severity as LegacySeverity,
 } from "../types";
+import { reduceAlertNoise } from "./normalize";
 import type {
   AgentOutput as EngineAgentOutput,
   Investigation,
@@ -97,9 +98,12 @@ export function investigationToReport(inv: Investigation): IntelligenceReport {
   }));
 
   const findings = inv.topFindings.map(adaptFinding);
-  const alerts = inv.agentOutputs
-    .flatMap((o) => o.alerts)
-    .map(adaptAlert);
+  // Reduce alert noise at the display boundary: dedupe, drop info/low,
+  // cap the count. Internal agent outputs keep their unfiltered view
+  // so per-agent debugging stays intact.
+  const alerts = reduceAlertNoise(
+    inv.agentOutputs.flatMap((o) => o.alerts),
+  ).map(adaptAlert);
 
   return {
     id: inv.id,

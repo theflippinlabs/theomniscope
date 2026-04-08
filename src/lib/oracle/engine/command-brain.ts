@@ -7,6 +7,7 @@ import {
 } from "./agents";
 import { detectConflicts, totalConfidencePenalty } from "./conflicts";
 import { InvestigationLogger } from "./investigations/logger";
+import { normalizeInvestigation } from "./normalize";
 import {
   buildMockProviderRegistry,
   type ProviderRegistry,
@@ -284,7 +285,13 @@ export class CommandBrain {
       conflicts,
       log: logger.flush(),
     };
-    return investigation;
+
+    // Final normalization pass: dedupe/prioritize findings, produce a
+    // crisp 1–2 line executive summary, and guarantee a consistent
+    // shape across wallet / token / NFT. The agent system, pipeline,
+    // and scoring logic above are unchanged — this is additive
+    // post-processing only.
+    return normalizeInvestigation(investigation);
   }
 }
 
