@@ -70,7 +70,7 @@ export class NFTSentinelAgent extends BaseAgent {
     // Wash heuristic
     const salesPerOwner = c.sales7d / Math.max(1, c.ownerCount);
     if (salesPerOwner > 0.25) {
-      b.addNegative(22)
+      b.addNegative(30)
         .addAlert({
           title: "Wash-trade heuristic triggered",
           level: "medium",
@@ -107,7 +107,7 @@ export class NFTSentinelAgent extends BaseAgent {
     }
 
     if (!c.verified) {
-      b.addNegative(8)
+      b.addNegative(12)
         .adjustConfidence(-6, "unverified collection")
         .addFinding({
           title: "Unverified collection",
