@@ -1,0 +1,1 @@
+export { InvestigationLogger } from "./logger";
