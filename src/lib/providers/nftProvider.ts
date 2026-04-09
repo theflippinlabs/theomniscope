@@ -1,10 +1,8 @@
 /**
- * NFT provider — pulls a live `NFTCollectionProfile` from the
- * Reservoir API (aggregated across major marketplaces).
- *
- * Reservoir's free tier works without an API key but rate-limits
- * aggressively — providers pass through the optional
- * `VITE_RESERVOIR_API_KEY` when configured.
+ * NFT provider — pulls a live `NFTCollectionProfile` through the
+ * Oracle proxy. The proxy relays calls to Reservoir (which
+ * aggregates across major marketplaces) server-side so no keys or
+ * rate-limit tokens ever reach the browser.
  *
  * The provider fills what Reservoir returns directly (supply,
  * owners, floor, volume, verification) and emits sensible defaults
@@ -27,7 +25,6 @@ import {
   type SupportedChain,
 } from "./config";
 import { callOracleProxy } from "./proxy";
-import { safeFetchJson } from "./safe-fetch";
 
 // ---------- Reservoir shapes ----------
 
@@ -59,14 +56,18 @@ interface ReservoirCollectionsResponse {
 // ---------- fetcher ----------
 
 /**
- * Composite shape returned by both the secure proxy and the direct
- * Reservoir path.
+ * Composite shape returned by the oracle proxy.
  */
 interface RawNftData {
   collection: ReservoirCollection;
 }
 
-async function fetchNftRawFromProxy(
+/**
+ * Resolve the raw Reservoir collection through the Oracle proxy.
+ * Returns null on any failure (no proxy URL configured, network
+ * error, unknown contract).
+ */
+async function fetchReservoirCollection(
   contract: string,
   chainKey: SupportedChain,
   config: ProviderConfig,
@@ -76,44 +77,6 @@ async function fetchNftRawFromProxy(
     config,
   );
   return raw?.collection ?? null;
-}
-
-async function fetchReservoirCollectionDirect(
-  contract: string,
-  chainKey: SupportedChain,
-  config: ProviderConfig,
-): Promise<ReservoirCollection | null> {
-  const chain = chainInfo(chainKey);
-  if (!chain.reservoirBase) return null;
-
-  const url = `${chain.reservoirBase}/collections/v7?id=${contract}&includeSalesCount=true`;
-  const headers: Record<string, string> = { accept: "application/json" };
-  if (config.reservoirApiKey) {
-    headers["x-api-key"] = config.reservoirApiKey;
-  }
-
-  const resp = await safeFetchJson<ReservoirCollectionsResponse>(url, {
-    headers,
-    timeoutMs: config.requestTimeoutMs,
-  });
-  return resp?.collections?.[0] ?? null;
-}
-
-/**
- * Resolve the raw Reservoir collection through the secure proxy if
- * one is configured; otherwise call Reservoir directly. Both paths
- * return null on any failure.
- */
-async function fetchReservoirCollection(
-  contract: string,
-  chainKey: SupportedChain,
-  config: ProviderConfig,
-): Promise<ReservoirCollection | null> {
-  if (config.oracleProxyUrl) {
-    const proxied = await fetchNftRawFromProxy(contract, chainKey, config);
-    if (proxied) return proxied;
-  }
-  return fetchReservoirCollectionDirect(contract, chainKey, config);
 }
 
 // ---------- transform ----------

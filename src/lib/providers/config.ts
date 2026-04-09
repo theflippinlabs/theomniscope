@@ -1,35 +1,28 @@
 /**
  * Oracle Sentinel — HTTP provider configuration.
  *
- * Reads optional environment variables for API keys and base URLs.
- * Every value is optional so the providers degrade gracefully to
- * the mock fallback when no configuration is present — the system
- * never crashes because of a missing key.
+ * The client has exactly one network surface for live data: the
+ * Oracle proxy (a Supabase Edge Function). Upstream API keys for
+ * Moralis / GoPlus / DexScreener / Reservoir live server-side on
+ * that proxy and are never bundled into the browser.
  *
- * Required env vars for live data:
+ * Required env var for live data:
  *
- *   VITE_MORALIS_API_KEY    — Moralis (wallet + NFT on Cronos)
- *   VITE_RESERVOIR_API_KEY  — Reservoir (NFT, optional; free tier works without a key)
+ *   VITE_ORACLE_PROXY_URL — URL of the deployed `oracle-fetch`
+ *                           Supabase Edge Function
  *
- * GoPlus is keyless for the free tier used by the token provider.
- * DexScreener is fully keyless.
+ * When the env var is absent or the proxy is unreachable, providers
+ * return null and the hybrid registry falls back to the mock layer.
  */
 
 export interface ProviderConfig {
   /**
-   * Preferred path — URL of the Supabase edge function / serverless
-   * proxy that holds the upstream API keys server-side. When set,
-   * the client NEVER sends Moralis / Reservoir keys over the wire.
+   * URL of the Oracle proxy (Supabase Edge Function). When set, the
+   * client POSTs `{ type, identifier, chain }` to this endpoint to
+   * fetch wallet / token / NFT data. Upstream API keys are held
+   * server-side; nothing sensitive ever reaches the client.
    */
   oracleProxyUrl?: string;
-  /**
-   * Dev-only fallback. When `oracleProxyUrl` is NOT set and this
-   * key IS set, the client calls Moralis directly. This is fine for
-   * local development but MUST NOT be used in production — a
-   * VITE_ prefix means the key is bundled into the client JS.
-   */
-  moralisApiKey?: string;
-  reservoirApiKey?: string;
   /** Default chain used when a caller does not specify one. */
   defaultChain: SupportedChain;
   /** Default network timeout per request, in milliseconds. */
@@ -66,9 +59,6 @@ export function buildProviderConfig(
   return {
     oracleProxyUrl:
       overrides.oracleProxyUrl ?? readEnv("VITE_ORACLE_PROXY_URL"),
-    moralisApiKey: overrides.moralisApiKey ?? readEnv("VITE_MORALIS_API_KEY"),
-    reservoirApiKey:
-      overrides.reservoirApiKey ?? readEnv("VITE_RESERVOIR_API_KEY"),
     defaultChain: overrides.defaultChain ?? "eth",
     requestTimeoutMs: overrides.requestTimeoutMs ?? 10_000,
     cache: {
@@ -81,17 +71,17 @@ export function buildProviderConfig(
 
 /**
  * Whether the configured providers can meaningfully fetch live data.
- * Returns true when either the secure proxy is set (production) or a
- * direct Moralis key is set (dev).
+ * Returns true when the Oracle proxy URL is set — the only
+ * production-safe configuration.
  */
 export function hasLiveConfig(config: ProviderConfig): boolean {
-  return Boolean(config.oracleProxyUrl) || Boolean(config.moralisApiKey);
+  return Boolean(config.oracleProxyUrl);
 }
 
 /**
  * Whether the current config is "production safe" — i.e. no raw API
- * keys exposed to the client bundle. Returns true when a proxy URL
- * is set (which is the only production-safe configuration).
+ * keys exposed to the client bundle. Always true when a proxy URL
+ * is set (the only path the providers support).
  */
 export function isProductionSafe(config: ProviderConfig): boolean {
   return Boolean(config.oracleProxyUrl);

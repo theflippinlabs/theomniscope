@@ -1,13 +1,13 @@
 /**
- * Wallet provider — pulls a live wallet profile from Moralis and
- * normalizes it into the engine's `WalletProfile` shape.
+ * Wallet provider — pulls a live wallet profile from the Oracle
+ * proxy (a Supabase Edge Function) and normalizes it into the
+ * engine's `WalletProfile` shape.
  *
  * Strategy:
- *   - Four parallel Moralis calls: native balance, ERC-20 balances,
- *     recent transactions, NFT count.
- *   - Each call is wrapped in `safeFetchJson` so a partial API
- *     outage degrades gracefully — the profile is built from
- *     whatever data arrives.
+ *   - A single POST to the proxy; the proxy performs the upstream
+ *     Moralis calls server-side and returns a normalized envelope.
+ *   - The response is wrapped in `safeFetchJson` (inside
+ *     `callOracleProxy`) so a proxy failure degrades gracefully.
  *   - The result is written to the shared cache so the engine's
  *     synchronous `providers.wallet.resolve()` can read it back
  *     without another network call.
@@ -31,13 +31,10 @@ import {
 } from "./config";
 import { classifyCounterparty } from "./labels";
 import { callOracleProxy } from "./proxy";
-import { safeFetchJson } from "./safe-fetch";
 
 // ---------- Moralis raw response shapes ----------
-
-interface MoralisBalanceResponse {
-  balance?: string;
-}
+// These describe the shapes the proxy relays from Moralis. The client
+// never calls Moralis directly — the proxy is the only network edge.
 
 interface MoralisErc20Token {
   token_address: string;
@@ -51,10 +48,6 @@ interface MoralisErc20Token {
   percent_change_24h?: number;
 }
 
-interface MoralisErc20Response {
-  result?: MoralisErc20Token[];
-}
-
 interface MoralisTx {
   hash: string;
   from_address: string;
@@ -64,87 +57,6 @@ interface MoralisTx {
   receipt_status?: string;
   input?: string;
   method_label?: string;
-}
-
-interface MoralisTxResponse {
-  result?: MoralisTx[];
-}
-
-interface MoralisNftResponse {
-  total?: number;
-  result?: unknown[];
-}
-
-// ---------- fetch helpers ----------
-
-const MORALIS_BASE = "https://deep-index.moralis.io/api/v2.2";
-
-function moralisHeaders(apiKey: string) {
-  return {
-    "X-API-Key": apiKey,
-    accept: "application/json",
-  };
-}
-
-async function fetchNativeBalance(
-  address: string,
-  chain: string,
-  apiKey: string,
-  timeoutMs: number,
-): Promise<string> {
-  const url = `${MORALIS_BASE}/${address}/balance?chain=${chain}`;
-  const resp = await safeFetchJson<MoralisBalanceResponse>(url, {
-    headers: moralisHeaders(apiKey),
-    timeoutMs,
-  });
-  return resp?.balance ?? "0";
-}
-
-async function fetchErc20(
-  address: string,
-  chain: string,
-  apiKey: string,
-  timeoutMs: number,
-): Promise<MoralisErc20Token[]> {
-  const url = `${MORALIS_BASE}/${address}/erc20?chain=${chain}&exclude_spam=true`;
-  const resp = await safeFetchJson<MoralisErc20Token[] | MoralisErc20Response>(
-    url,
-    {
-      headers: moralisHeaders(apiKey),
-      timeoutMs,
-    },
-  );
-  if (!resp) return [];
-  if (Array.isArray(resp)) return resp;
-  return resp.result ?? [];
-}
-
-async function fetchTransactions(
-  address: string,
-  chain: string,
-  apiKey: string,
-  timeoutMs: number,
-): Promise<MoralisTx[]> {
-  const url = `${MORALIS_BASE}/${address}?chain=${chain}&limit=25`;
-  const resp = await safeFetchJson<MoralisTxResponse>(url, {
-    headers: moralisHeaders(apiKey),
-    timeoutMs,
-  });
-  return resp?.result ?? [];
-}
-
-async function fetchNftCount(
-  address: string,
-  chain: string,
-  apiKey: string,
-  timeoutMs: number,
-): Promise<number> {
-  const url = `${MORALIS_BASE}/${address}/nft?chain=${chain}&format=decimal&limit=1`;
-  const resp = await safeFetchJson<MoralisNftResponse>(url, {
-    headers: moralisHeaders(apiKey),
-    timeoutMs,
-  });
-  return typeof resp?.total === "number" ? resp.total : 0;
 }
 
 // ---------- transform functions ----------
@@ -331,9 +243,8 @@ export interface FetchWalletOptions {
 }
 
 /**
- * Composite shape returned by both the secure proxy and the direct
- * Moralis path. Transform functions downstream read from this
- * single contract.
+ * Composite shape returned by the oracle proxy. Transform functions
+ * downstream read from this single contract.
  */
 interface RawWalletData {
   balance: string;
@@ -343,60 +254,13 @@ interface RawWalletData {
 }
 
 /**
- * Fetch raw wallet data from the oracle proxy (production path).
- * The proxy holds the Moralis key server-side; no key ever reaches
- * the client bundle.
- */
-async function fetchWalletRawFromProxy(
-  address: string,
-  chainMoralis: string,
-  config: ProviderConfig,
-): Promise<RawWalletData | null> {
-  return callOracleProxy<RawWalletData>(
-    { type: "wallet", identifier: address, chain: chainMoralis },
-    config,
-  );
-}
-
-/**
- * Fetch raw wallet data directly from Moralis (dev-only path).
- * Only used when `oracleProxyUrl` is not configured — never in
- * production builds that ship the VITE_ORACLE_PROXY_URL.
- */
-async function fetchWalletRawFromMoralis(
-  address: string,
-  chainMoralis: string,
-  apiKey: string,
-  timeoutMs: number,
-): Promise<RawWalletData | null> {
-  const [balance, tokens, transactions, nftCount] = await Promise.all([
-    fetchNativeBalance(address, chainMoralis, apiKey, timeoutMs),
-    fetchErc20(address, chainMoralis, apiKey, timeoutMs),
-    fetchTransactions(address, chainMoralis, apiKey, timeoutMs),
-    fetchNftCount(address, chainMoralis, apiKey, timeoutMs),
-  ]);
-  if (
-    balance === "0" &&
-    tokens.length === 0 &&
-    transactions.length === 0 &&
-    nftCount === 0
-  ) {
-    return null;
-  }
-  return { balance, tokens, transactions, nftCount };
-}
-
-/**
  * Fetch a full live `WalletProfile`.
  *
- * Routing:
- *   1. If a proxy URL is configured, call it (production-safe).
- *   2. Else if a direct Moralis key is set, call Moralis directly
- *      (dev-only).
- *   3. Else return null — the hybrid registry falls back to mock.
- *
- * Any failure (proxy down, Moralis down, JSON parse error, timeout)
- * resolves to null. The pipeline never throws.
+ * All network traffic flows through the Oracle proxy — the only
+ * place upstream API keys are ever touched. When no proxy URL is
+ * configured, or the proxy returns null / fails, this function
+ * resolves to null and the hybrid registry falls back to the mock
+ * layer. The pipeline never throws.
  */
 export async function fetchLiveWalletProfile(
   address: string,
@@ -406,17 +270,10 @@ export async function fetchLiveWalletProfile(
   const chainKey = options.chain ?? config.defaultChain;
   const chain = chainInfo(chainKey);
 
-  let raw: RawWalletData | null = null;
-  if (config.oracleProxyUrl) {
-    raw = await fetchWalletRawFromProxy(address, chain.moralis, config);
-  } else if (config.moralisApiKey) {
-    raw = await fetchWalletRawFromMoralis(
-      address,
-      chain.moralis,
-      config.moralisApiKey,
-      config.requestTimeoutMs,
-    );
-  }
+  const raw = await callOracleProxy<RawWalletData>(
+    { type: "wallet", identifier: address, chain: chainKey },
+    config,
+  );
 
   if (!raw) return null;
 

@@ -37,8 +37,6 @@ import { defaultCommandBrain } from "@/lib/oracle/engine";
 function testConfig(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
   return {
     oracleProxyUrl: undefined,
-    moralisApiKey: undefined,
-    reservoirApiKey: undefined,
     defaultChain: "eth",
     requestTimeoutMs: 10_000,
     cache: { walletTtlMs: 60, tokenTtlMs: 60, nftTtlMs: 60 },
@@ -338,42 +336,43 @@ describe("providers — fetchLiveWalletProfile", () => {
     defaultProviderCache.clear();
   });
 
-  it("returns null when no Moralis key or proxy URL is configured", async () => {
+  it("returns null when no proxy URL is configured", async () => {
     const profile = await fetchLiveWalletProfile("0xabc", {
       config: testConfig(),
     });
     expect(profile).toBeNull();
   });
 
-  it("builds a WalletProfile from a happy-path Moralis response", async () => {
-    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
-      if (url.includes("/balance")) {
-        return new Response(JSON.stringify({ balance: "2000000000000000000" }));
-      }
-      if (url.includes("/erc20")) {
-        return new Response(JSON.stringify([]));
-      }
-      if (url.includes("/nft")) {
-        return new Response(JSON.stringify({ total: 5, result: [] }));
-      }
-      // transactions list
+  it("builds a WalletProfile from a happy-path proxy response", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      expect(init?.method).toBe("POST");
+      const body = JSON.parse(String(init?.body));
+      expect(body.type).toBe("wallet");
+      expect(body.identifier).toBe("0xwalletunderanalysis");
       return new Response(
         JSON.stringify({
-          result: [
-            {
-              hash: "0xaaa",
-              from_address: "0x28c6c06298d514db089934071355e5743bf21d60",
-              to_address: "0xwalletunderanalysis",
-              value: "1000000000000000000",
-              block_timestamp: "2026-04-09T12:00:00Z",
-            },
-          ],
+          data: {
+            balance: "2000000000000000000",
+            tokens: [],
+            transactions: [
+              {
+                hash: "0xaaa",
+                from_address: "0x28c6c06298d514db089934071355e5743bf21d60",
+                to_address: "0xwalletunderanalysis",
+                value: "1000000000000000000",
+                block_timestamp: "2026-04-09T12:00:00Z",
+              },
+            ],
+            nftCount: 5,
+          },
         }),
       );
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const config = testConfig({ moralisApiKey: "test-key" });
+    const config = testConfig({
+      oracleProxyUrl: "https://example.invalid/oracle-fetch",
+    });
     const profile = await fetchLiveWalletProfile(
       "0xwalletunderanalysis",
       { config, chain: "eth" },
@@ -384,19 +383,23 @@ describe("providers — fetchLiveWalletProfile", () => {
     expect(profile!.transactions).toHaveLength(1);
     expect(profile!.counterparties).toHaveLength(1);
     expect(profile!.counterparties[0].category).toBe("exchange");
+    // Single POST to the proxy — no direct upstream calls
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("returns null when every upstream call yields empty data", async () => {
+  it("returns null when the proxy returns { data: null }", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({}))),
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: null }))),
     );
-    const config = testConfig({ moralisApiKey: "test-key" });
+    const config = testConfig({
+      oracleProxyUrl: "https://example.invalid/oracle-fetch",
+    });
     const profile = await fetchLiveWalletProfile("0xempty", { config });
     expect(profile).toBeNull();
   });
 
-  it("routes through the oracle proxy when proxyUrl is configured", async () => {
+  it("attaches Authorization and posts the proxy envelope", async () => {
     // The proxy path is ONE POST to the edge function URL; it returns
     // the same `{ balance, tokens, transactions, nftCount }` envelope
     // the direct Moralis path produces — so the transform code stays
@@ -464,61 +467,54 @@ describe("providers — fetchLiveTokenProfile", () => {
     defaultProviderCache.clear();
   });
 
-  it("returns null when both GoPlus and DexScreener fail", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response("fail", { status: 500 })),
-    );
+  it("returns null when no proxy URL is configured", async () => {
     const profile = await fetchLiveTokenProfile("0xtoken", {
       config: testConfig(),
     });
     expect(profile).toBeNull();
   });
 
-  it("builds a TokenProfile when GoPlus returns a honeypot + tax payload", async () => {
+  it("builds a TokenProfile from a honeypot + tax proxy payload", async () => {
     const address = "0xtoken";
-    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
-      if (url.includes("gopluslabs")) {
-        return new Response(
-          JSON.stringify({
-            code: 1,
-            result: {
-              [address.toLowerCase()]: {
-                token_name: "Trap Token",
-                token_symbol: "TRAP",
-                buy_tax: "0.05",
-                sell_tax: "0.25",
-                is_honeypot: "1",
-                is_mintable: "1",
-                is_proxy: "1",
-                owner_address: "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-                holder_count: "123",
-                holders: [{ address: "0xabc", percent: "0.61" }],
-                dex: [
-                  {
-                    name: "Uniswap V2",
-                    pair: "TRAP/WETH",
-                    liquidity: "82000",
-                  },
-                ],
-                lp_holders: [{ is_locked: 0, percent: "0.5" }],
-              },
-            },
-          }),
-        );
-      }
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      expect(init?.method).toBe("POST");
+      const body = JSON.parse(String(init?.body));
+      expect(body.type).toBe("token");
+      expect(body.identifier).toBe(address);
       return new Response(
         JSON.stringify({
-          pairs: [
-            {
-              baseToken: { name: "Trap Token", symbol: "TRAP" },
-              priceUsd: "0.000001",
-              marketCap: 2_420_000,
-              pairCreatedAt: Date.now() - 9 * 24 * 60 * 60 * 1000,
-              liquidity: { usd: 82_000 },
-              dexId: "uniswap",
+          data: {
+            security: {
+              token_name: "Trap Token",
+              token_symbol: "TRAP",
+              buy_tax: "0.05",
+              sell_tax: "0.25",
+              is_honeypot: "1",
+              is_mintable: "1",
+              is_proxy: "1",
+              owner_address: "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+              holder_count: "123",
+              holders: [{ address: "0xabc", percent: "0.61" }],
+              dex: [
+                {
+                  name: "Uniswap V2",
+                  pair: "TRAP/WETH",
+                  liquidity: "82000",
+                },
+              ],
+              lp_holders: [{ is_locked: 0, percent: "0.5" }],
             },
-          ],
+            pairs: [
+              {
+                baseToken: { name: "Trap Token", symbol: "TRAP" },
+                priceUsd: "0.000001",
+                marketCap: 2_420_000,
+                pairCreatedAt: Date.now() - 9 * 24 * 60 * 60 * 1000,
+                liquidity: { usd: 82_000 },
+                dexId: "uniswap",
+              },
+            ],
+          },
         }),
       );
     });
@@ -526,7 +522,9 @@ describe("providers — fetchLiveTokenProfile", () => {
 
     const profile = await fetchLiveTokenProfile(address, {
       chain: "eth",
-      config: testConfig(),
+      config: testConfig({
+        oracleProxyUrl: "https://example.invalid/oracle-fetch",
+      }),
     });
     expect(profile).toBeTruthy();
     expect(profile!.name).toBe("Trap Token");
@@ -543,14 +541,13 @@ describe("providers — fetchLiveTokenProfile", () => {
     expect(
       profile!.permissions.some((p) => p.name === "mint()"),
     ).toBe(true);
+    // Single POST to the proxy — no direct GoPlus / DexScreener calls
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("routes through the oracle proxy when proxyUrl is configured", async () => {
+  it("accepts a minimal proxy envelope with just security metadata", async () => {
     const address = "0xproxytoken";
-    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
-      expect(init?.method).toBe("POST");
-      const body = JSON.parse(String(init?.body));
-      expect(body.type).toBe("token");
+    const fetchMock = vi.fn().mockImplementation(async () => {
       return new Response(
         JSON.stringify({
           data: {
@@ -596,15 +593,22 @@ describe("providers — fetchLiveNftCollection", () => {
     defaultProviderCache.clear();
   });
 
-  it("returns null when Reservoir returns no collections", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(new Response(JSON.stringify({ collections: [] }))),
-    );
+  it("returns null when no proxy URL is configured", async () => {
     const profile = await fetchLiveNftCollection("0xcollection", {
       config: testConfig(),
+    });
+    expect(profile).toBeNull();
+  });
+
+  it("returns null when the proxy returns { data: null }", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: null }))),
+    );
+    const profile = await fetchLiveNftCollection("0xcollection", {
+      config: testConfig({
+        oracleProxyUrl: "https://example.invalid/oracle-fetch",
+      }),
     });
     expect(profile).toBeNull();
   });
@@ -908,7 +912,7 @@ describe("providers — prefetchEntity auto-detection", () => {
     expect(result.kind).toBe("unknown");
   });
 
-  it("returns kind=unknown when all providers fail", async () => {
+  it("returns kind=unknown when the proxy is unavailable", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(new Response("fail", { status: 500 })),
@@ -916,8 +920,9 @@ describe("providers — prefetchEntity auto-detection", () => {
     const result = await prefetchEntity(
       "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
     );
-    // No Moralis key configured by default → wallet returns null.
-    // GoPlus + Reservoir return 500 → null.
+    // The default provider config has no VITE_ORACLE_PROXY_URL in the
+    // test env → every provider returns null → prefetchEntity yields
+    // "unknown" and the caller's skeleton stays in place.
     expect(result.kind).toBe("unknown");
   });
 });
@@ -933,16 +938,15 @@ describe("providers — configuration", () => {
 
   it("buildProviderConfig accepts overrides", () => {
     const config = buildProviderConfig({
-      moralisApiKey: "override-key",
+      oracleProxyUrl: "https://example.invalid/oracle-fetch",
       defaultChain: "cronos",
     });
-    expect(config.moralisApiKey).toBe("override-key");
+    expect(config.oracleProxyUrl).toBe("https://example.invalid/oracle-fetch");
     expect(config.defaultChain).toBe("cronos");
   });
 
-  it("hasLiveConfig returns true when either a proxy URL or a Moralis key is set", () => {
+  it("hasLiveConfig is true only when the proxy URL is set", () => {
     expect(hasLiveConfig(testConfig())).toBe(false);
-    expect(hasLiveConfig(testConfig({ moralisApiKey: "k" }))).toBe(true);
     expect(
       hasLiveConfig(
         testConfig({ oracleProxyUrl: "https://example.invalid/oracle" }),
@@ -950,8 +954,8 @@ describe("providers — configuration", () => {
     ).toBe(true);
   });
 
-  it("isProductionSafe requires a proxy URL (never a raw key)", () => {
-    expect(isProductionSafe(testConfig({ moralisApiKey: "k" }))).toBe(false);
+  it("isProductionSafe is true only when the proxy URL is set", () => {
+    expect(isProductionSafe(testConfig())).toBe(false);
     expect(
       isProductionSafe(
         testConfig({ oracleProxyUrl: "https://example.invalid/oracle" }),

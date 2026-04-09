@@ -1,8 +1,9 @@
 /**
  * Chain metadata — maps between the symbolic chain names used by
- * the Moralis / explorer APIs, the numeric chain IDs used by
- * GoPlus, and the display strings used by the engine's
- * `WalletProfile.chain` / `TokenProfile.chain` fields.
+ * the engine, the numeric chain IDs used by the proxy's upstream
+ * calls, and the display strings used in the engine's profile
+ * shapes. No external upstream URLs are held on the client; the
+ * proxy owns them server-side.
  */
 
 import type { SupportedChain } from "./config";
@@ -11,12 +12,10 @@ export interface ChainInfo {
   key: SupportedChain;
   /** Human-readable display name stored in the engine profiles. */
   display: string;
-  /** Moralis chain parameter value. */
+  /** Moralis chain parameter value forwarded to the proxy. */
   moralis: string;
-  /** Numeric chain id used by GoPlus / JSON-RPC. */
+  /** Numeric chain id forwarded to the proxy for GoPlus lookups. */
   chainId: number;
-  /** Reservoir API base URL (NFT). May be undefined for unsupported chains. */
-  reservoirBase?: string;
   /** Native currency symbol — used for the native asset row. */
   nativeSymbol: string;
   /** Native currency name. */
@@ -29,7 +28,6 @@ export const CHAIN_CATALOG: Record<SupportedChain, ChainInfo> = {
     display: "Ethereum",
     moralis: "eth",
     chainId: 1,
-    reservoirBase: "https://api.reservoir.tools",
     nativeSymbol: "ETH",
     nativeName: "Ether",
   },
@@ -46,7 +44,6 @@ export const CHAIN_CATALOG: Record<SupportedChain, ChainInfo> = {
     display: "Polygon",
     moralis: "polygon",
     chainId: 137,
-    reservoirBase: "https://api-polygon.reservoir.tools",
     nativeSymbol: "MATIC",
     nativeName: "Polygon",
   },
@@ -63,7 +60,6 @@ export const CHAIN_CATALOG: Record<SupportedChain, ChainInfo> = {
     display: "Base",
     moralis: "base",
     chainId: 8453,
-    reservoirBase: "https://api-base.reservoir.tools",
     nativeSymbol: "ETH",
     nativeName: "Ether",
   },
@@ -72,7 +68,6 @@ export const CHAIN_CATALOG: Record<SupportedChain, ChainInfo> = {
     display: "Arbitrum",
     moralis: "arbitrum",
     chainId: 42161,
-    reservoirBase: "https://api-arbitrum.reservoir.tools",
     nativeSymbol: "ETH",
     nativeName: "Ether",
   },
