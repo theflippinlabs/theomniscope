@@ -11,8 +11,22 @@
  * provider registry inside the engine.
  */
 
-import type { EntityType, RiskLabel, TrendDirection } from "../engine/types";
+import type { DecisionTier } from "../engine/normalize";
+import type {
+  EntityType,
+  RiskLabel,
+  Severity,
+  TrendDirection,
+} from "../engine/types";
 
+/**
+ * A compact, serializable record of a past investigation.
+ *
+ * The `verdict` and `keyFindings` fields are optional for backward
+ * compatibility with snapshots persisted before the memory layer
+ * was introduced. `investigationToSnapshot` always populates them on
+ * new records; old records default to derived values at read time.
+ */
 export interface InvestigationSnapshot {
   id: string;
   entityIdentifier: string;
@@ -26,6 +40,16 @@ export interface InvestigationSnapshot {
   topFindingsCount: number;
   highSeverityCount: number;
   summary: string;
+  /** Decision tier derived from risk label and confidence. */
+  verdict?: DecisionTier;
+  /** Top findings snapshot — titles and severities only, never raw evidence. */
+  keyFindings?: KeyFindingSnapshot[];
+}
+
+export interface KeyFindingSnapshot {
+  title: string;
+  severity: Severity;
+  category: string;
 }
 
 export interface SnapshotStore {

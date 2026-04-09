@@ -18,6 +18,8 @@ export {
   buildWhyThisMatters,
   buildRecommendations,
   normalizeInvestigation,
+  classifyDecision,
+  type DecisionTier,
 } from "./normalize";
 export {
   CommandBrain,

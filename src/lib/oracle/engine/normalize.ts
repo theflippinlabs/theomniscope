@@ -52,19 +52,18 @@ function normalizeKey(s: string): string {
 // ---------- decision tier ----------
 
 /**
- * Internal decision classification. Not exposed on the Investigation
- * type — it is a computed property used to drive the executive
- * summary, the recommendation list, and the why-this-matters
- * narrative in lock-step.
+ * Decision tier. Exposed so the memory layer and other consumers can
+ * use the same classification the summary builder uses, keeping the
+ * decision logic in lock-step across the engine.
  *
  *   safe         → no action required; clean baselines
  *   caution      → mixed or elevated signals; reduce exposure / monitor
  *   avoid        → high-risk profile; do not engage
  *   preliminary  → data coverage too limited for a confident verdict
  */
-type DecisionTier = "safe" | "caution" | "avoid" | "preliminary";
+export type DecisionTier = "safe" | "caution" | "avoid" | "preliminary";
 
-function classifyDecision(
+export function classifyDecision(
   riskLabel: RiskLabel | string,
   confidence: number,
 ): DecisionTier {

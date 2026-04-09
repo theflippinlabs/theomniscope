@@ -1,6 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { DecisionTier } from "../engine/normalize";
 import type { EntityType, RiskLabel, TrendDirection } from "../engine/types";
-import type { InvestigationSnapshot, SnapshotStore } from "./types";
+import type {
+  InvestigationSnapshot,
+  KeyFindingSnapshot,
+  SnapshotStore,
+} from "./types";
 
 /**
  * Supabase-backed snapshot store.
@@ -42,6 +47,8 @@ interface Row {
   top_findings_count: number;
   high_severity_count: number;
   summary: string;
+  verdict: string | null;
+  key_findings: KeyFindingSnapshot[] | null;
 }
 
 function rowToSnapshot(r: Row): InvestigationSnapshot {
@@ -58,6 +65,8 @@ function rowToSnapshot(r: Row): InvestigationSnapshot {
     topFindingsCount: r.top_findings_count,
     highSeverityCount: r.high_severity_count,
     summary: r.summary,
+    verdict: (r.verdict as DecisionTier | null) ?? undefined,
+    keyFindings: r.key_findings ?? undefined,
   };
 }
 
@@ -75,6 +84,8 @@ function snapshotToRow(s: InvestigationSnapshot): Row {
     top_findings_count: s.topFindingsCount,
     high_severity_count: s.highSeverityCount,
     summary: s.summary,
+    verdict: s.verdict ?? null,
+    key_findings: s.keyFindings ?? null,
   };
 }
 
