@@ -16,6 +16,7 @@ export {
   alertSummaryFrom,
   buildExecutiveSummary,
   buildWhyThisMatters,
+  buildRecommendations,
   normalizeInvestigation,
 } from "./normalize";
 export {

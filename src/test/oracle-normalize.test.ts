@@ -182,7 +182,7 @@ describe("normalize — buildExecutiveSummary", () => {
     },
   ];
 
-  it("produces a decisive 1–2 sentence summary with drivers inlined as prose", () => {
+  it("produces a decision-grade avoid verdict with drivers inlined", () => {
     const summary = buildExecutiveSummary({
       entityLabel: "MoonPaw Inu",
       entityType: "token",
@@ -195,20 +195,21 @@ describe("normalize — buildExecutiveSummary", () => {
       ],
       scoreBreakdown: baseBreakdown,
     });
-    expect(summary.toLowerCase()).toContain("high risk identified");
+    // Avoid verdict: "High-risk profile … Avoid exposure."
+    expect(summary.toLowerCase()).toContain("high-risk profile");
     expect(summary.toLowerCase()).toContain("token");
     expect(summary.toLowerCase()).toContain("active mint authority");
     expect(summary.toLowerCase()).toContain("thin liquidity");
-    expect(summary.toLowerCase()).toContain("do not hold exposure");
-    // No numeric clutter, no hedging words
+    expect(summary.toLowerCase()).toContain("avoid exposure");
     expect(summary).not.toMatch(/\/100/);
     expect(summary.toLowerCase()).not.toMatch(/\bmight\b|\bcould\b|\bpossibly\b/);
     expect(summary.length).toBeLessThan(300);
+    // 2 sentences max
     const sentences = summary.split(/\.\s+/).filter(Boolean);
     expect(sentences.length).toBeLessThanOrEqual(2);
   });
 
-  it("produces decisive clean-state summaries with the correct noun", () => {
+  it("produces decisive safe verdicts with 'No action required' closer", () => {
     const walletSummary = buildExecutiveSummary({
       entityLabel: "Whale 042",
       entityType: "wallet",
@@ -243,11 +244,17 @@ describe("normalize — buildExecutiveSummary", () => {
         },
       ],
     });
-    // Both clean → "No risk signals detected on this {noun}. …"
     expect(walletSummary.toLowerCase()).toContain("no risk signals detected");
     expect(walletSummary.toLowerCase()).toContain("wallet");
+    expect(walletSummary.toLowerCase()).toContain("no action required");
     expect(nftSummary.toLowerCase()).toContain("no risk signals detected");
     expect(nftSummary.toLowerCase()).toContain("collection");
+    expect(nftSummary.toLowerCase()).toContain("no action required");
+    // 2 sentences max (em-dash merges the baseline into sentence 1)
+    for (const s of [walletSummary, nftSummary]) {
+      const sentences = s.split(/\.\s+/).filter(Boolean);
+      expect(sentences.length).toBeLessThanOrEqual(2);
+    }
   });
 
   it("distinguishes token from wallet and collection via the entity noun", () => {
@@ -262,9 +269,27 @@ describe("normalize — buildExecutiveSummary", () => {
     });
     expect(tokenSummary.toLowerCase()).toContain("no risk signals detected");
     expect(tokenSummary.toLowerCase()).toContain("token");
+    expect(tokenSummary.toLowerCase()).toContain("no action required");
   });
 
-  it("uses decisive wording for Neutral risk band", () => {
+  it("uses 'Provisional clean signal' for safe tier with low confidence", () => {
+    const summary = buildExecutiveSummary({
+      entityLabel: "Fresh Whale",
+      entityType: "wallet",
+      score: 10,
+      confidence: 40,
+      riskLabel: "Promising",
+      topFindings: [],
+      scoreBreakdown: [],
+    });
+    expect(summary.toLowerCase()).toContain("provisional clean signal");
+    expect(summary.toLowerCase()).toContain("data coverage limited");
+    expect(summary.toLowerCase()).toContain("monitor for confirmation");
+    // Never states "no risk signals detected" when coverage is thin
+    expect(summary.toLowerCase()).not.toContain("no risk signals detected");
+  });
+
+  it("produces a Neutral caution verdict with 'Caution advised — maintain active monitoring'", () => {
     const summary = buildExecutiveSummary({
       entityLabel: "Night Circuit Club",
       entityType: "nft_collection",
@@ -277,10 +302,11 @@ describe("normalize — buildExecutiveSummary", () => {
     expect(summary.toLowerCase()).toContain("mixed signals");
     expect(summary.toLowerCase()).toContain("collection");
     expect(summary.toLowerCase()).toContain("wash-trade signature");
+    expect(summary.toLowerCase()).toContain("caution advised");
     expect(summary.toLowerCase()).toContain("maintain active monitoring");
   });
 
-  it("uses 'elevated risk identified' wording for Elevated Risk band", () => {
+  it("produces an Elevated caution verdict with 'Caution advised — reduce exposure'", () => {
     const summary = buildExecutiveSummary({
       entityLabel: "Fresh Wallet",
       entityType: "wallet",
@@ -290,15 +316,21 @@ describe("normalize — buildExecutiveSummary", () => {
       topFindings: [f({ title: "Mixer-linked funding detected", severity: "high" })],
       scoreBreakdown: [],
     });
-    expect(summary.toLowerCase()).toContain("elevated risk identified");
+    expect(summary.toLowerCase()).toContain("elevated risk detected");
     expect(summary.toLowerCase()).toContain("wallet");
     expect(summary.toLowerCase()).toContain("mixer-linked funding");
+    expect(summary.toLowerCase()).toContain("caution advised");
     expect(summary.toLowerCase()).toContain("reduce exposure");
-    // Filler word "detected" should be stripped from the driver phrase
-    expect(summary.toLowerCase()).not.toContain("detected");
+    // Filler word "detected" stripped from driver phrase (but not from
+    // the verdict line which explicitly says "Elevated risk detected").
+    const driverSection = summary
+      .toLowerCase()
+      .split("elevated risk detected on this wallet: ")[1]
+      ?.split(".")[0];
+    expect(driverSection).not.toContain("detected");
   });
 
-  it("switches to preliminary wording when confidence is below 35", () => {
+  it("switches to preliminary verdict when confidence is below 35", () => {
     const summary = buildExecutiveSummary({
       entityLabel: "Unknown",
       entityType: "token",
@@ -309,9 +341,43 @@ describe("normalize — buildExecutiveSummary", () => {
       scoreBreakdown: [],
     });
     expect(summary.toLowerCase()).toContain("preliminary assessment");
-    expect(summary.toLowerCase()).toContain("broader data");
-    // Preliminary is cautious — no alarm, no "high risk identified"
-    expect(summary.toLowerCase()).not.toContain("high risk identified");
+    expect(summary.toLowerCase()).toContain("verdict pending");
+    expect(summary.toLowerCase()).toContain("cautious hold");
+    // Preliminary never shouts "avoid exposure" or "high-risk profile"
+    expect(summary.toLowerCase()).not.toContain("avoid exposure");
+    expect(summary.toLowerCase()).not.toContain("high-risk profile");
+  });
+
+  it("appends a confidence caveat to caution verdicts when confidence < 50", () => {
+    const summary = buildExecutiveSummary({
+      entityLabel: "Marginal",
+      entityType: "token",
+      score: 55,
+      confidence: 42,
+      riskLabel: "Elevated Risk",
+      topFindings: [f({ title: "Thin liquidity", severity: "high" })],
+      scoreBreakdown: [],
+    });
+    expect(summary.toLowerCase()).toContain("elevated risk detected");
+    expect(summary.toLowerCase()).toContain("confidence is limited");
+    // Still directional — the verdict itself is preserved
+    expect(summary.toLowerCase()).toContain("caution advised");
+  });
+
+  it("appends a confidence caveat to avoid verdicts when confidence < 50", () => {
+    const summary = buildExecutiveSummary({
+      entityLabel: "Marginal",
+      entityType: "token",
+      score: 85,
+      confidence: 42,
+      riskLabel: "High Risk",
+      topFindings: [f({ title: "Honeypot", severity: "critical" })],
+      scoreBreakdown: [],
+    });
+    expect(summary.toLowerCase()).toContain("high-risk profile");
+    expect(summary.toLowerCase()).toContain("avoid exposure");
+    expect(summary.toLowerCase()).toContain("confidence is limited");
+    expect(summary.toLowerCase()).toContain("direction is clear");
   });
 
   it("handles the empty-driver edge case without crashing", () => {
@@ -326,18 +392,20 @@ describe("normalize — buildExecutiveSummary", () => {
     });
     expect(summary.toLowerCase()).toContain("no risk signals detected");
     expect(summary.toLowerCase()).toContain("wallet");
+    expect(summary.toLowerCase()).toContain("no action required");
   });
 });
 
 // ---------- buildWhyThisMatters ----------
 
 describe("normalize — buildWhyThisMatters", () => {
-  it("produces a severe-signals paragraph for score >= 70", () => {
+  it("produces a severe-signals paragraph for the avoid tier", () => {
     const text = buildWhyThisMatters({
       score: 85,
       confidence: 70,
       conflicts: [],
       topFindings: [f({ title: "Honeypot", severity: "critical" })],
+      riskLabel: "High Risk",
     });
     expect(text.toLowerCase()).toContain("severe signals");
     expect(text.toLowerCase()).toContain("1 critical finding");
@@ -349,6 +417,7 @@ describe("normalize — buildWhyThisMatters", () => {
       confidence: 70,
       conflicts: [],
       topFindings: [],
+      riskLabel: "High Risk",
       scoreBreakdown: [
         {
           agent: "Token Risk",
@@ -363,14 +432,28 @@ describe("normalize — buildWhyThisMatters", () => {
     expect(text.toLowerCase()).toContain("drives the profile");
   });
 
-  it("appends a confidence warning when below 50", () => {
+  it("switches to preliminary context when confidence is below 35", () => {
     const text = buildWhyThisMatters({
       score: 40,
       confidence: 30,
       conflicts: [],
       topFindings: [],
+      riskLabel: "Neutral",
+    });
+    expect(text.toLowerCase()).toContain("data coverage is limited");
+    expect(text.toLowerCase()).toContain("tentative");
+  });
+
+  it("appends a confidence warning for caution tier below 50", () => {
+    const text = buildWhyThisMatters({
+      score: 55,
+      confidence: 42,
+      conflicts: [],
+      topFindings: [],
+      riskLabel: "Elevated Risk",
     });
     expect(text.toLowerCase()).toContain("below 50%");
+    expect(text.toLowerCase()).toContain("tentative");
   });
 
   it("narrates conflicts instead of exposing raw contradictions", () => {
@@ -388,21 +471,35 @@ describe("normalize — buildWhyThisMatters", () => {
       confidence: 60,
       conflicts,
       topFindings: [],
+      riskLabel: "Neutral",
     });
     expect(text.toLowerCase()).toContain("disagreement");
     expect(text.toLowerCase()).toContain("both views preserved");
-    // It should NOT expose the raw Conflict object:
     expect(text).not.toContain("[object Object]");
   });
 
-  it("produces a calm paragraph when the score is below 40", () => {
+  it("produces a safe-tier context when the profile is clean", () => {
     const text = buildWhyThisMatters({
       score: 20,
       confidence: 80,
       conflicts: [],
       topFindings: [],
+      riskLabel: "Promising",
     });
-    expect(text.toLowerCase()).toContain("low score");
+    expect(text.toLowerCase()).toContain("clean profile");
+    expect(text.toLowerCase()).toContain("observation");
+  });
+
+  it("produces a caution-tier context for Neutral / Elevated bands", () => {
+    const text = buildWhyThisMatters({
+      score: 50,
+      confidence: 70,
+      conflicts: [],
+      topFindings: [],
+      riskLabel: "Neutral",
+    });
+    expect(text.toLowerCase()).toContain("observed factors");
+    expect(text.toLowerCase()).toContain("path to escalation");
   });
 });
 
@@ -552,19 +649,17 @@ describe("normalize — normalizeInvestigation (integration)", () => {
 // ---------- end-to-end: the legacy IntelligenceReport consumed by the UI ----------
 
 describe("normalize — legacy IntelligenceReport output", () => {
-  it("executiveSummary is sharp, driver-led, and under 300 chars", () => {
+  it("executiveSummary is decision-grade avoid verdict for MoonPaw Inu", () => {
     const inv = investigate({ identifier: "MoonPaw Inu" });
     const report = investigationToReport(inv);
     expect(report.executiveSummary.length).toBeLessThan(300);
-    expect(report.executiveSummary.toLowerCase()).toContain("high risk identified");
+    expect(report.executiveSummary.toLowerCase()).toContain("high-risk profile");
     expect(report.executiveSummary.toLowerCase()).toContain("token");
     expect(report.executiveSummary.toLowerCase()).toMatch(
       /mint authority|thin liquidity|honeypot/,
     );
-    // Decision-grade: directive present, no hedging
-    expect(report.executiveSummary.toLowerCase()).toContain(
-      "do not hold exposure",
-    );
+    // Decision-grade verdict directive present
+    expect(report.executiveSummary.toLowerCase()).toContain("avoid exposure");
     expect(report.executiveSummary.toLowerCase()).not.toMatch(
       /\bmight\b|\bcould\b|\bpossibly\b/,
     );
@@ -591,6 +686,38 @@ describe("normalize — legacy IntelligenceReport output", () => {
         );
       }
     }
+  });
+
+  it("every analysis closes with a tier-appropriate verdict directive", () => {
+    const expectations: Array<{ id: string; verdict: RegExp }> = [
+      { id: "Whale 042", verdict: /no action required/i },
+      { id: "Fresh Wallet 01", verdict: /caution advised/i },
+      { id: "SALPHA", verdict: /no action required/i },
+      { id: "MoonPaw Inu", verdict: /avoid exposure/i },
+      { id: "Luminar Genesis", verdict: /no action required/i },
+      { id: "Night Circuit Club", verdict: /caution advised/i },
+    ];
+    for (const { id, verdict } of expectations) {
+      const inv = investigate({ identifier: id });
+      expect(inv.executiveSummary).toMatch(verdict);
+    }
+  });
+
+  it("recommendations are tier-aware and overwrite the generic synthesis list", () => {
+    const avoid = investigate({ identifier: "MoonPaw Inu" });
+    expect(avoid.recommendations.join(" ").toLowerCase()).toMatch(
+      /do not allocate|exit liquidity/,
+    );
+
+    const safe = investigate({ identifier: "Whale 042" });
+    expect(safe.recommendations.join(" ").toLowerCase()).toContain(
+      "no action required",
+    );
+
+    const caution = investigate({ identifier: "Fresh Wallet 01" });
+    expect(caution.recommendations.join(" ").toLowerCase()).toMatch(
+      /conditional|hold off/,
+    );
   });
 
   it("legacy alerts carry rewritten (clean) titles", () => {

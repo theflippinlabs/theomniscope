@@ -8,20 +8,21 @@
  * Responsibilities:
  *  - Deduplicate and prioritize findings across all agents
  *  - Reduce and REWRITE alert titles for clarity
- *  - Strip hedging language from agent text fields (appears → is,
- *    looks → is, may → is likely, worth attention → warranting scrutiny…)
- *  - Produce a sharp, decisive 1–2 sentence executive summary that
- *    answers "what should I think or do?" without equivocation
- *  - Produce a composed "why this matters" paragraph that names the
- *    dominant contributor, narrates conflicts cleanly, and aligns its
- *    tone with confidence
- *  - Guarantee identical structure across wallet / token / NFT
+ *  - Strip hedging language from agent text fields
+ *  - Produce a decisive executive summary with an explicit VERDICT
+ *    (safe / caution / avoid / preliminary) so every analysis closes
+ *    with a clear "what to do" instruction
+ *  - Produce tier-aware recommendations that overwrite the synthesis
+ *    agent's generic list
+ *  - Produce a composed "why this matters" paragraph that aligns with
+ *    the same tier
+ *  - Guarantee identical logic across wallet / token / NFT
  *
  * This file does NOT modify any UI, component, page, or style. The
  * existing agent system, pipeline, and scoring logic are preserved
  * intact — normalization is additive post-processing that rewrites
- * text output fields in-place (via new objects) without touching the
- * underlying agent logic.
+ * text output fields in-place without touching the underlying agent
+ * logic.
  */
 
 import type {
@@ -46,6 +47,31 @@ const SEVERITY_RANK: Record<Severity, number> = {
 
 function normalizeKey(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// ---------- decision tier ----------
+
+/**
+ * Internal decision classification. Not exposed on the Investigation
+ * type — it is a computed property used to drive the executive
+ * summary, the recommendation list, and the why-this-matters
+ * narrative in lock-step.
+ *
+ *   safe         → no action required; clean baselines
+ *   caution      → mixed or elevated signals; reduce exposure / monitor
+ *   avoid        → high-risk profile; do not engage
+ *   preliminary  → data coverage too limited for a confident verdict
+ */
+type DecisionTier = "safe" | "caution" | "avoid" | "preliminary";
+
+function classifyDecision(
+  riskLabel: RiskLabel | string,
+  confidence: number,
+): DecisionTier {
+  if (confidence < 35 || riskLabel === "Under Review") return "preliminary";
+  if (riskLabel === "High Risk") return "avoid";
+  if (riskLabel === "Elevated Risk" || riskLabel === "Neutral") return "caution";
+  return "safe";
 }
 
 // ---------- hedging rewrites ----------
@@ -294,37 +320,54 @@ export function alertSummaryFrom(alerts: Alert[]): AlertSummary {
  * and decisive — "no risk signals detected" rather than "shows normal
  * behavior".
  */
+/**
+ * Per-noun clean baselines. Merged into a single sentence via em-dash
+ * so the final summary — including the verdict directive — stays at
+ * 2 sentences max for institutional readability.
+ */
 const CLEAN_BASELINE: Record<string, string> = {
   wallet:
-    "No risk signals detected on this wallet. Behavior aligns with institutional baselines.",
+    "No risk signals detected on this wallet — behavior aligns with institutional baselines.",
   token:
-    "No risk signals detected on this token. Contract and market state align with clean baselines.",
+    "No risk signals detected on this token — contract and market state align with clean baselines.",
   collection:
-    "No risk signals detected on this collection. Ownership and market state align with healthy baselines.",
+    "No risk signals detected on this collection — ownership and market state align with healthy baselines.",
   target:
-    "No risk signals detected on this target. Profile aligns with expected baselines.",
+    "No risk signals detected on this target — profile aligns with expected baselines.",
+};
+
+/**
+ * Terminal directive phrases. Each is the analyst's closing sentence
+ * — short, clear, actionable.
+ */
+const VERDICT_DIRECTIVE: Record<DecisionTier, string> = {
+  safe: "No action required.",
+  caution: "Caution advised.",
+  avoid: "Avoid exposure.",
+  preliminary: "Verdict pending broader data; cautious hold advised.",
 };
 
 /**
  * Decision-grade executive summary.
  *
- * 1–2 sentences, no hedging, no numeric clutter, ends with an
- * implicit instruction ("what should I think or do?"). Format is
- * IDENTICAL across wallet / token / NFT so the UI never sees phrasing
- * drift. Low confidence always overrides the score band to keep the
- * tone composed rather than alarming.
+ * Every output closes with an explicit verdict directive tied to the
+ * decision tier (safe / caution / avoid / preliminary). 1–3 short
+ * sentences, no hedging, no numeric clutter, consistent structure
+ * across wallet / token / NFT.
  *
  * Examples:
- *   "High risk identified: active mint authority, high sell tax, and
- *    thin liquidity. Do not hold exposure against this profile."
- *   "Elevated risk identified: mixer-linked funding and mixer → target
- *    chain pattern. Reduce exposure or delay new allocations."
- *   "Mixed signals identified: wash-trade signature. Maintain active
- *    monitoring."
- *   "No risk signals detected. Wallet behavior aligns with
- *    institutional baselines."
- *   "Preliminary assessment — limited coverage around thin liquidity.
- *    Broader data required before action."
+ *   "High-risk profile on this token: active mint authority, high
+ *    sell tax, and thin liquidity. Avoid exposure."
+ *   "Elevated risk detected on this wallet: mixer-linked funding and
+ *    mixer → target chain pattern. Caution advised — reduce exposure
+ *    or delay new allocations."
+ *   "Mixed signals on this collection: wash-trade signature. Caution
+ *    advised — maintain active monitoring."
+ *   "No risk signals detected on this wallet. Behavior aligns with
+ *    institutional baselines. No action required."
+ *   "Preliminary assessment of this token — limited coverage around
+ *    thin liquidity. Verdict pending broader data; cautious hold
+ *    advised."
  */
 export function buildExecutiveSummary(input: {
   entityLabel: string;
@@ -340,41 +383,147 @@ export function buildExecutiveSummary(input: {
   const noun = entityNoun(entityType);
   const drivers = extractDrivers(topFindings, scoreBreakdown, 3);
   const driverPhrase = joinNatural(drivers);
+  const tier = classifyDecision(riskLabel, confidence);
 
-  // Low confidence overrides regardless of score. Preliminary tone is
-  // cautious but still clear — no alarm, no false certainty.
-  if (confidence < 35 || riskLabel === "Under Review") {
+  // --- preliminary ---------------------------------------------------
+  if (tier === "preliminary") {
     return driverPhrase
-      ? `Preliminary assessment of this ${noun} — limited coverage around ${driverPhrase}. Broader data required before action.`
-      : `Preliminary assessment of this ${noun}. Data coverage is limited; broader coverage required before action.`;
+      ? `Preliminary assessment of this ${noun} — limited coverage around ${driverPhrase}. ${VERDICT_DIRECTIVE.preliminary}`
+      : `Preliminary assessment of this ${noun}. Data coverage is limited. ${VERDICT_DIRECTIVE.preliminary}`;
   }
 
-  if (riskLabel === "High Risk") {
-    return driverPhrase
-      ? `High risk identified on this ${noun} — ${driverPhrase}. Do not hold exposure against this profile.`
-      : `High risk identified on this ${noun}. Multiple adverse signals present; do not hold exposure against this profile.`;
+  // --- avoid (High Risk) --------------------------------------------
+  if (tier === "avoid") {
+    const verdict = driverPhrase
+      ? `High-risk profile on this ${noun}: ${driverPhrase}. ${VERDICT_DIRECTIVE.avoid}`
+      : `High-risk profile on this ${noun}. Multiple adverse signals present. ${VERDICT_DIRECTIVE.avoid}`;
+    return confidence < 50
+      ? `${verdict} Confidence is limited but the direction is clear.`
+      : verdict;
   }
 
-  if (riskLabel === "Elevated Risk") {
-    return driverPhrase
-      ? `Elevated risk identified on this ${noun} — ${driverPhrase}. Reduce exposure or delay new allocations.`
-      : `Elevated risk identified on this ${noun}. Review recent activity before adjusting exposure.`;
+  // --- caution (Elevated Risk / Neutral) ----------------------------
+  if (tier === "caution") {
+    const isElevated = riskLabel === "Elevated Risk";
+    const head = isElevated
+      ? (driverPhrase
+          ? `Elevated risk detected on this ${noun}: ${driverPhrase}.`
+          : `Elevated risk detected on this ${noun}.`)
+      : (driverPhrase
+          ? `Mixed signals on this ${noun}: ${driverPhrase}.`
+          : `Mixed signals on this ${noun} with no dominant driver.`);
+    const action = isElevated
+      ? "reduce exposure or delay new allocations"
+      : "maintain active monitoring";
+    // Inline "Caution advised" as a verdict clause (no period) so the
+    // em-dash action reads as one continuous directive.
+    const verdict = `${head} Caution advised — ${action}.`;
+    return confidence < 50
+      ? `${verdict} Verdict is directional; confidence is limited.`
+      : verdict;
   }
 
-  if (riskLabel === "Neutral") {
-    return driverPhrase
-      ? `Mixed signals on this ${noun} — ${driverPhrase}. Maintain active monitoring.`
-      : `Mixed signals on this ${noun} with no dominant driver. Maintain active monitoring.`;
+  // --- safe (Promising) ---------------------------------------------
+  if (confidence < 50) {
+    // Provisional clean: the data says "clean" but coverage is thin.
+    // We stay directional but name the caveat explicitly.
+    return `Provisional clean signal on this ${noun} — data coverage limited. Monitor for confirmation before increasing exposure.`;
   }
+  return `${CLEAN_BASELINE[noun] ?? CLEAN_BASELINE.target} ${VERDICT_DIRECTIVE.safe}`;
+}
 
-  // Promising (clean) — per-entity institutional template
-  return CLEAN_BASELINE[noun] ?? CLEAN_BASELINE.target;
+// ---------- tier-aware recommendations ----------
+
+/**
+ * Build the analyst's recommendation list tied to the decision tier.
+ * The list overwrites the synthesis agent's generic recommendations
+ * during `normalizeInvestigation`, so every analysis ships a
+ * consistent, tier-appropriate action plan.
+ */
+export function buildRecommendations(input: {
+  tier: DecisionTier;
+  riskLabel: RiskLabel | string;
+  confidence: number;
+  topFindings: Finding[];
+}): string[] {
+  const { tier, riskLabel, confidence, topFindings } = input;
+  const criticalCount = topFindings.filter(
+    (f) => f.severity === "critical",
+  ).length;
+
+  const base: string[] = (() => {
+    switch (tier) {
+      case "avoid":
+        return [
+          "Do not allocate new capital against this profile.",
+          "If already exposed, prioritize exit liquidity and treat slippage as the secondary concern.",
+          "Add to high-sensitivity watchlist with maximum alert thresholds.",
+        ];
+      case "caution":
+        return riskLabel === "Elevated Risk"
+          ? [
+              "Treat any existing exposure as conditional. Reduce if risk factors persist through the next cycle.",
+              "Hold off on new allocations until the identified signals resolve.",
+              "Enable alerts on score deterioration and narrative shift.",
+            ]
+          : [
+              "Monitor the identified signals for confirmation before adjusting exposure.",
+              "Delay material allocation decisions until the mixed signals resolve.",
+              "Enable alerts on concentration and market integrity changes.",
+            ];
+      case "safe":
+        return [
+          "No action required at the current profile.",
+          "Maintain standard watchlist monitoring.",
+          "Re-run the analysis if exposure size increases materially.",
+        ];
+      case "preliminary":
+      default:
+        return [
+          "Hold off on any action until broader data confirms the profile.",
+          "Re-run the analysis once additional coverage is available.",
+          "Treat the current verdict as tentative pending confirmation.",
+        ];
+    }
+  })();
+
+  // Append tier-crossing caveats.
+  if (confidence < 50 && tier !== "preliminary") {
+    base.push(
+      "Verdict is directional but confidence is limited; re-run when broader coverage arrives.",
+    );
+  }
+  if (criticalCount > 0 && tier !== "safe") {
+    base.unshift(
+      `${criticalCount} critical finding${criticalCount === 1 ? "" : "s"} require immediate attention before any action.`,
+    );
+  }
+  return base;
 }
 
 /**
- * Composed "why this matters" paragraph — 2–4 sentences of context
- * that explains the score trajectory, names the dominant contributor,
- * narrates conflicts cleanly, and aligns with confidence.
+ * Tier-aware context paragraph. The first sentence is a fixed
+ * analyst statement tied to the decision tier; everything after is
+ * supporting context (dominant contributor, critical count,
+ * confidence warning, conflict note).
+ */
+const TIER_CONTEXT: Record<DecisionTier, string> = {
+  avoid:
+    "Severe signals of this magnitude rarely reverse without intervention. Base rates for adverse outcomes are materially elevated under this profile.",
+  caution:
+    "Observed factors do not establish imminent failure on their own, but the path to escalation is short. Active monitoring is the conservative stance.",
+  safe:
+    "A clean profile is an observation, not a guarantee. Continued monitoring remains required for positions of material size.",
+  preliminary:
+    "Data coverage is limited; the current verdict is tentative and should be refreshed once broader observation becomes available.",
+};
+
+/**
+ * Composed "why this matters" paragraph — aligned with the same
+ * decision tier as the executive summary, so the two sections never
+ * contradict each other. Names the dominant contributor, the
+ * critical-finding count, and any conflicts, then closes with a
+ * confidence note when relevant.
  */
 export function buildWhyThisMatters(input: {
   score: number;
@@ -382,15 +531,12 @@ export function buildWhyThisMatters(input: {
   conflicts: Conflict[];
   topFindings: Finding[];
   scoreBreakdown?: ScoreBreakdownEntry[];
+  riskLabel?: RiskLabel | string;
 }): string {
-  const { score, confidence, conflicts, topFindings, scoreBreakdown } = input;
-
-  const base =
-    score >= 70
-      ? "Severe signals of this magnitude rarely reverse without intervention. Base rates for adverse outcomes are materially elevated under this profile."
-      : score >= 40
-        ? "Medium-severity factors do not establish imminent risk on their own. A single additional anomaly will escalate the profile materially."
-        : "A low score is an observation, not a guarantee. Continued monitoring remains required for positions of material size.";
+  const { confidence, conflicts, topFindings, scoreBreakdown, riskLabel } =
+    input;
+  const tier = classifyDecision(riskLabel ?? "Neutral", confidence);
+  const base = TIER_CONTEXT[tier];
 
   const extras: string[] = [];
 
@@ -412,7 +558,7 @@ export function buildWhyThisMatters(input: {
     );
   }
 
-  if (confidence < 50) {
+  if (confidence < 50 && tier !== "preliminary") {
     extras.push(
       "Confidence is below 50%; this assessment is tentative until broader coverage arrives.",
     );
@@ -433,9 +579,16 @@ export function buildWhyThisMatters(input: {
  * Normalize an Investigation — the pipeline's final polish step.
  *
  * In addition to prioritizing findings and rewriting the executive
- * summary, this step rewrites every agent-produced text field through
- * `rewriteHedgingText`. Agent business logic is untouched — only the
- * emitted strings are polished.
+ * summary, this step:
+ *   - Strips hedging from every agent-produced text field
+ *   - Produces a tier-aware executive summary with an explicit verdict
+ *   - Produces a tier-aware "why this matters" paragraph
+ *   - Overwrites the synthesis agent's generic recommendations with
+ *     tier-appropriate actions so the decision layer is consistent
+ *     end-to-end
+ *
+ * Agent business logic is untouched — only the emitted strings are
+ * polished.
  */
 export function normalizeInvestigation(inv: Investigation): Investigation {
   // 1. Prioritize findings and strip hedging from their descriptions
@@ -478,6 +631,18 @@ export function normalizeInvestigation(inv: Investigation): Investigation {
     conflicts: inv.conflicts,
     topFindings,
     scoreBreakdown,
+    riskLabel: inv.riskLabel,
+  });
+
+  // 5. Overwrite the synthesis agent's generic recommendations with a
+  //    tier-aware, analyst-grade action list so the decision layer is
+  //    consistent end-to-end.
+  const tier = classifyDecision(inv.riskLabel, inv.overallConfidence.value);
+  const recommendations = buildRecommendations({
+    tier,
+    riskLabel: inv.riskLabel,
+    confidence: inv.overallConfidence.value,
+    topFindings,
   });
 
   return {
@@ -487,5 +652,6 @@ export function normalizeInvestigation(inv: Investigation): Investigation {
     scoreBreakdown,
     executiveSummary,
     whyThisMatters,
+    recommendations,
   };
 }
