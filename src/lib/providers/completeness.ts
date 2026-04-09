@@ -24,6 +24,41 @@ import type {
 export type DataCompleteness = "full" | "partial" | "mock";
 
 /**
+ * Unified analyzer status used by the three analyzer pages
+ * (wallet / token / nft). A single enum keeps the page state, the
+ * `LiveDataBadge`, and the `IntelligencePanel` header in sync:
+ *
+ *   "idle"     — initial demo render from fixtures; no fetch queued
+ *   "loading"  — a live prefetch is in-flight
+ *   "live"     — prefetch succeeded and all provider domains returned
+ *                meaningful data (`completeness === "full"`)
+ *   "partial"  — prefetch succeeded but some domains were empty
+ *                (`completeness === "partial"`)
+ *   "error"    — prefetch failed or the proxy returned `null`; the
+ *                page renders the last known state (skeleton or demo)
+ */
+export type AnalyzerStatus =
+  | "idle"
+  | "loading"
+  | "live"
+  | "partial"
+  | "error";
+
+/**
+ * Map a successful prefetch's `DataCompleteness` tier into an
+ * `AnalyzerStatus`. "mock" collapses to "idle" — a successful
+ * prefetch that produced no meaningful data is still "not live"
+ * from the caller's perspective.
+ */
+export function statusFromCompleteness(
+  completeness: DataCompleteness,
+): AnalyzerStatus {
+  if (completeness === "full") return "live";
+  if (completeness === "partial") return "partial";
+  return "idle";
+}
+
+/**
  * Wallet completeness heuristic. "Full" requires evidence across
  * assets, transactions, and counterparties — a wallet with only
  * a native balance reads as "partial".

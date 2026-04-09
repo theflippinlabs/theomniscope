@@ -51,7 +51,9 @@ export {
   walletCompleteness,
   tokenCompleteness,
   nftCompleteness,
+  statusFromCompleteness,
   type DataCompleteness,
+  type AnalyzerStatus,
 } from "./completeness";
 
 export {

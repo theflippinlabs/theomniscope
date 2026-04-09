@@ -27,7 +27,9 @@ import {
   emptyWalletProfile,
   prefetchEntity,
   readCachedWallet,
+  statusFromCompleteness,
   walletCompleteness,
+  type AnalyzerStatus,
   type DataCompleteness,
 } from "@/lib/providers";
 
@@ -38,6 +40,7 @@ interface AnalyzerState {
   report: ReturnType<typeof runAnalysis>;
   isLiveData: boolean;
   dataCompleteness: DataCompleteness;
+  status: AnalyzerStatus;
 }
 
 function buildReport(wallet: AnalyzerState["wallet"]) {
@@ -53,10 +56,10 @@ function buildReport(wallet: AnalyzerState["wallet"]) {
  * Strict routing:
  *   - If the query is a real 0x address, render an empty skeleton
  *     profile so the page never shows fixture data under a live
- *     address. The async effect below upgrades the state if the
- *     proxy returns live data.
+ *     address. Status is "loading" because the async effect below
+ *     will immediately attempt a live prefetch.
  *   - Otherwise the query is treated as a human label (demo flow)
- *     and matched against the fixtures.
+ *     and matched against the fixtures with status "idle".
  */
 function resolveInitial(q: string | null): AnalyzerState {
   const trimmed = (q ?? "").trim();
@@ -67,6 +70,7 @@ function resolveInitial(q: string | null): AnalyzerState {
       report: buildReport(empty),
       isLiveData: false,
       dataCompleteness: "mock",
+      status: "loading",
     };
   }
   const match =
@@ -80,6 +84,7 @@ function resolveInitial(q: string | null): AnalyzerState {
     report: buildReport(match),
     isLiveData: false,
     dataCompleteness: "mock",
+    status: "idle",
   };
 }
 
@@ -93,8 +98,8 @@ export default function OracleWalletAnalyzer() {
   const { wallet, report } = state;
 
   // When the query is a real 0x address, attempt a live prefetch and
-  // re-run the analysis with the cached data. Any failure (no API key,
-  // rate limit, network error) keeps the skeleton in place.
+  // re-run the analysis with the cached data. Status transitions:
+  //   idle / loading → live | partial | error.
   useEffect(() => {
     setState(resolveInitial(q));
     if (!q || !ADDRESS_RE.test(q.trim())) return;
@@ -104,23 +109,38 @@ export default function OracleWalletAnalyzer() {
       try {
         const pre = await prefetchEntity(q.trim());
         if (cancelled) return;
-        if (pre.kind === "unknown") return;
+        if (pre.kind === "unknown") {
+          // Proxy returned no data — keep the skeleton visible and
+          // flip status to "error" so the UI can surface it.
+          setState((prev) => ({ ...prev, status: "error" }));
+          return;
+        }
         const live = readCachedWallet(q.trim());
-        if (!live || cancelled) return;
+        if (!live || cancelled) {
+          if (!cancelled) {
+            setState((prev) => ({ ...prev, status: "error" }));
+          }
+          return;
+        }
         const liveReport = runAnalysis({
           entityType: "wallet",
           wallet: live,
           identifier: live.address,
           label: live.label ?? live.address,
         });
+        const completeness = walletCompleteness(live, true);
         setState({
           wallet: live,
           report: liveReport,
           isLiveData: true,
-          dataCompleteness: walletCompleteness(live, true),
+          dataCompleteness: completeness,
+          status: statusFromCompleteness(completeness),
         });
       } catch (err) {
         console.warn("[OracleWalletAnalyzer] prefetch failed, keeping skeleton", err);
+        if (!cancelled) {
+          setState((prev) => ({ ...prev, status: "error" }));
+        }
       }
     })();
     return () => {
@@ -174,7 +194,7 @@ export default function OracleWalletAnalyzer() {
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <IntelligencePanel report={report} isLiveData={state.isLiveData} />
+          <IntelligencePanel report={report} status={state.status} />
 
           <OracleCard>
             <OracleCardHeader

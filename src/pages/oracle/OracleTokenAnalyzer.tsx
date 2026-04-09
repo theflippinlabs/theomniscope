@@ -20,7 +20,9 @@ import {
   emptyTokenProfile,
   prefetchEntity,
   readCachedToken,
+  statusFromCompleteness,
   tokenCompleteness,
+  type AnalyzerStatus,
   type DataCompleteness,
 } from "@/lib/providers";
 
@@ -31,6 +33,7 @@ interface AnalyzerState {
   report: ReturnType<typeof runAnalysis>;
   isLiveData: boolean;
   dataCompleteness: DataCompleteness;
+  status: AnalyzerStatus;
 }
 
 function buildReport(token: AnalyzerState["token"]) {
@@ -44,9 +47,9 @@ function buildReport(token: AnalyzerState["token"]) {
 
 /**
  * Strict routing:
- *   - 0x address → empty skeleton (never a fixture). The async
- *     effect below may upgrade the state with live data.
- *   - human label → fixture match for the demo experience.
+ *   - 0x address → empty skeleton (never a fixture) + status="loading"
+ *     because the async effect is about to run a live prefetch.
+ *   - human label → fixture match + status="idle" (demo flow).
  */
 function resolveInitial(q: string): AnalyzerState {
   const trimmed = q.trim();
@@ -57,6 +60,7 @@ function resolveInitial(q: string): AnalyzerState {
       report: buildReport(empty),
       isLiveData: false,
       dataCompleteness: "mock",
+      status: "loading",
     };
   }
   const match =
@@ -71,6 +75,7 @@ function resolveInitial(q: string): AnalyzerState {
     report: buildReport(match),
     isLiveData: false,
     dataCompleteness: "mock",
+    status: "idle",
   };
 }
 
@@ -81,9 +86,9 @@ export default function OracleTokenAnalyzer() {
   const [state, setState] = useState<AnalyzerState>(() => resolveInitial(q));
   const { token, report } = state;
 
-  // If q looks like a real contract address, prefetch GoPlus +
-  // DexScreener (via the secure proxy), then re-run the analysis
-  // with the live data. On failure we keep the skeleton.
+  // If q looks like a real contract address, prefetch through the
+  // secure proxy, then re-run the analysis with the live data.
+  // Status transitions: loading → live | partial | error.
   useEffect(() => {
     setState(resolveInitial(q));
     if (!q || !ADDRESS_RE.test(q.trim())) return;
@@ -92,23 +97,37 @@ export default function OracleTokenAnalyzer() {
     (async () => {
       try {
         const pre = await prefetchEntity(q.trim());
-        if (cancelled || pre.kind === "unknown") return;
+        if (cancelled) return;
+        if (pre.kind === "unknown") {
+          setState((prev) => ({ ...prev, status: "error" }));
+          return;
+        }
         const live = readCachedToken(q.trim());
-        if (!live || cancelled) return;
+        if (!live || cancelled) {
+          if (!cancelled) {
+            setState((prev) => ({ ...prev, status: "error" }));
+          }
+          return;
+        }
         const liveReport = runAnalysis({
           entityType: "token",
           token: live,
           identifier: live.address,
           label: `${live.name} (${live.symbol})`,
         });
+        const completeness = tokenCompleteness(live, true);
         setState({
           token: live,
           report: liveReport,
           isLiveData: true,
-          dataCompleteness: tokenCompleteness(live, true),
+          dataCompleteness: completeness,
+          status: statusFromCompleteness(completeness),
         });
       } catch (err) {
         console.warn("[OracleTokenAnalyzer] prefetch failed, keeping skeleton", err);
+        if (!cancelled) {
+          setState((prev) => ({ ...prev, status: "error" }));
+        }
       }
     })();
     return () => {
@@ -169,7 +188,7 @@ export default function OracleTokenAnalyzer() {
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <IntelligencePanel report={report} isLiveData={state.isLiveData} />
+          <IntelligencePanel report={report} status={state.status} />
 
           <OracleCard>
             <OracleCardHeader title="Liquidity pools" subtitle={`${token.liquidityPools.length} active`} />

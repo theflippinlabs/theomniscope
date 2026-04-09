@@ -22,6 +22,8 @@ import {
   nftCompleteness,
   prefetchEntity,
   readCachedNft,
+  statusFromCompleteness,
+  type AnalyzerStatus,
   type DataCompleteness,
 } from "@/lib/providers";
 
@@ -34,6 +36,7 @@ interface MonitorState {
   report: ReturnType<typeof runAnalysis>;
   isLiveData: boolean;
   dataCompleteness: DataCompleteness;
+  status: AnalyzerStatus;
 }
 
 function buildReport(coll: MonitorState["coll"]) {
@@ -47,9 +50,9 @@ function buildReport(coll: MonitorState["coll"]) {
 
 /**
  * Strict routing for NFT collections:
- *   - 0x contract address → empty skeleton. Async prefetch may
- *     upgrade to live Reservoir data.
- *   - human label / slug → demo fixture match.
+ *   - 0x contract address → empty skeleton + status="loading"
+ *     (async prefetch is about to run).
+ *   - human label / slug → demo fixture match + status="idle".
  */
 function resolveInitial(q: string): MonitorState {
   const trimmed = q.trim();
@@ -60,6 +63,7 @@ function resolveInitial(q: string): MonitorState {
       report: buildReport(empty),
       isLiveData: false,
       dataCompleteness: "mock",
+      status: "loading",
     };
   }
   const match =
@@ -74,6 +78,7 @@ function resolveInitial(q: string): MonitorState {
     report: buildReport(match),
     isLiveData: false,
     dataCompleteness: "mock",
+    status: "idle",
   };
 }
 
@@ -84,8 +89,9 @@ export default function OracleNFTMonitor() {
   const [state, setState] = useState<MonitorState>(() => resolveInitial(q));
   const { coll, report } = state;
 
-  // Attempt a live Reservoir prefetch for real contract addresses;
-  // on failure we keep the skeleton (never fall back to fixtures).
+  // Attempt a live Reservoir prefetch (through the proxy) for real
+  // contract addresses. Status transitions: loading → live |
+  // partial | error. On failure we keep the skeleton in place.
   useEffect(() => {
     setState(resolveInitial(q));
     if (!q || !ADDRESS_RE.test(q.trim())) return;
@@ -94,23 +100,37 @@ export default function OracleNFTMonitor() {
     (async () => {
       try {
         const pre = await prefetchEntity(q.trim());
-        if (cancelled || pre.kind === "unknown") return;
+        if (cancelled) return;
+        if (pre.kind === "unknown") {
+          setState((prev) => ({ ...prev, status: "error" }));
+          return;
+        }
         const live = readCachedNft(q.trim());
-        if (!live || cancelled) return;
+        if (!live || cancelled) {
+          if (!cancelled) {
+            setState((prev) => ({ ...prev, status: "error" }));
+          }
+          return;
+        }
         const liveReport = runAnalysis({
           entityType: "nft",
           nft: live,
           identifier: live.contract,
           label: live.name,
         });
+        const completeness = nftCompleteness(live, true);
         setState({
           coll: live,
           report: liveReport,
           isLiveData: true,
-          dataCompleteness: nftCompleteness(live, true),
+          dataCompleteness: completeness,
+          status: statusFromCompleteness(completeness),
         });
       } catch (err) {
         console.warn("[OracleNFTMonitor] prefetch failed, keeping skeleton", err);
+        if (!cancelled) {
+          setState((prev) => ({ ...prev, status: "error" }));
+        }
       }
     })();
     return () => {
@@ -171,7 +191,7 @@ export default function OracleNFTMonitor() {
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <IntelligencePanel report={report} isLiveData={state.isLiveData} />
+          <IntelligencePanel report={report} status={state.status} />
 
           <div className="grid gap-6 md:grid-cols-3">
             <OracleCard className="p-5">

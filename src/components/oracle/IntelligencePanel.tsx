@@ -1,5 +1,6 @@
 import { ArrowRight, CircleDot, Radar } from "lucide-react";
 import type { IntelligenceReport } from "@/lib/oracle/types";
+import type { AnalyzerStatus } from "@/lib/providers";
 import { LiveDataBadge } from "./LiveDataBadge";
 import { ScoreRing } from "./ScoreBadge";
 import { OracleCard, OracleCardHeader, SeverityPill } from "./primitives";
@@ -9,19 +10,21 @@ import { OracleCard, OracleCardHeader, SeverityPill } from "./primitives";
  * and the Command Center. Summarizes a full IntelligenceReport in a
  * compact, calm, institutional block.
  *
- * When `isLiveData` is passed, the header "action" slot renders a
- * Live Data / Demo Mode pill instead of the default "Analysis
- * complete" indicator. Callers that omit the prop get the original
- * behavior unchanged.
+ * When `status` is passed, the header "action" slot renders a
+ * status-aware pill (Loading… / Live Data / Partial Data / Demo
+ * Mode / Fetch Error). Legacy callers can still pass `isLiveData`
+ * as a boolean.
  */
 export function IntelligencePanel({
   report,
   compact = false,
   isLiveData,
+  status,
 }: {
   report: IntelligenceReport;
   compact?: boolean;
   isLiveData?: boolean;
+  status?: AnalyzerStatus;
 }) {
   const topFindings = [...report.findings]
     .sort(
@@ -31,15 +34,16 @@ export function IntelligencePanel({
     )
     .slice(0, compact ? 3 : 4);
 
-  const headerAction =
-    isLiveData === undefined ? (
-      <div className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-medium text-sky-300">
-        <CircleDot className="h-3 w-3" />
-        Analysis complete
-      </div>
-    ) : (
-      <LiveDataBadge isLive={isLiveData} />
-    );
+  const hasStatusSignal = status !== undefined || isLiveData !== undefined;
+
+  const headerAction = !hasStatusSignal ? (
+    <div className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-medium text-sky-300">
+      <CircleDot className="h-3 w-3" />
+      Analysis complete
+    </div>
+  ) : (
+    <LiveDataBadge isLive={isLiveData} status={status} />
+  );
 
   return (
     <OracleCard glow>
