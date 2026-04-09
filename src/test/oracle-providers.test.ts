@@ -313,7 +313,19 @@ describe("providers — fetchLiveWalletProfile", () => {
   });
 
   it("returns null when no Moralis key is configured", async () => {
-    const config = buildProviderConfig({ moralisApiKey: undefined });
+    // Build the config manually so the test is independent of the
+    // developer's local .env.local (which may set VITE_MORALIS_API_KEY).
+    const config: Parameters<typeof fetchLiveWalletProfile>[1] extends {
+      config?: infer C;
+    }
+      ? C
+      : never = {
+      moralisApiKey: undefined,
+      reservoirApiKey: undefined,
+      defaultChain: "eth",
+      requestTimeoutMs: 10_000,
+      cache: { walletTtlMs: 60, tokenTtlMs: 60, nftTtlMs: 60 },
+    };
     const profile = await fetchLiveWalletProfile("0xabc", { config });
     expect(profile).toBeNull();
   });

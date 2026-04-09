@@ -129,7 +129,7 @@ export default function OracleWalletAnalyzer() {
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <IntelligencePanel report={report} />
+          <IntelligencePanel report={report} isLiveData={state.isLiveData} />
 
           <OracleCard>
             <OracleCardHeader

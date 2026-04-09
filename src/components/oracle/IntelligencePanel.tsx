@@ -1,5 +1,6 @@
 import { ArrowRight, CircleDot, Radar } from "lucide-react";
 import type { IntelligenceReport } from "@/lib/oracle/types";
+import { LiveDataBadge } from "./LiveDataBadge";
 import { ScoreRing } from "./ScoreBadge";
 import { OracleCard, OracleCardHeader, SeverityPill } from "./primitives";
 
@@ -7,13 +8,20 @@ import { OracleCard, OracleCardHeader, SeverityPill } from "./primitives";
  * The canonical "intelligence panel" used on the landing page hero
  * and the Command Center. Summarizes a full IntelligenceReport in a
  * compact, calm, institutional block.
+ *
+ * When `isLiveData` is passed, the header "action" slot renders a
+ * Live Data / Demo Mode pill instead of the default "Analysis
+ * complete" indicator. Callers that omit the prop get the original
+ * behavior unchanged.
  */
 export function IntelligencePanel({
   report,
   compact = false,
+  isLiveData,
 }: {
   report: IntelligenceReport;
   compact?: boolean;
+  isLiveData?: boolean;
 }) {
   const topFindings = [...report.findings]
     .sort(
@@ -23,18 +31,23 @@ export function IntelligencePanel({
     )
     .slice(0, compact ? 3 : 4);
 
+  const headerAction =
+    isLiveData === undefined ? (
+      <div className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-medium text-sky-300">
+        <CircleDot className="h-3 w-3" />
+        Analysis complete
+      </div>
+    ) : (
+      <LiveDataBadge isLive={isLiveData} />
+    );
+
   return (
     <OracleCard glow>
       <OracleCardHeader
         title="Oracle Intelligence"
         subtitle={`${report.entity.label} · ${report.entity.chain}`}
         icon={<Radar />}
-        action={
-          <div className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-medium text-sky-300">
-            <CircleDot className="h-3 w-3" />
-            Analysis complete
-          </div>
-        }
+        action={headerAction}
       />
       <div className="flex flex-col gap-6 p-5 md:flex-row">
         <div className="flex-shrink-0">

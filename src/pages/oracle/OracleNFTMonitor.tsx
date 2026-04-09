@@ -123,7 +123,7 @@ export default function OracleNFTMonitor() {
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <IntelligencePanel report={report} />
+          <IntelligencePanel report={report} isLiveData={state.isLiveData} />
 
           <div className="grid gap-6 md:grid-cols-3">
             <OracleCard className="p-5">
