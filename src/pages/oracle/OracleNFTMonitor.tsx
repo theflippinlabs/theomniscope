@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ExternalLink, Image as ImageIcon, Palette, Users } from "lucide-react";
 import { EntitySearch } from "@/components/oracle/EntitySearch";
 import { IntelligencePanel } from "@/components/oracle/IntelligencePanel";
+import { VerdictPanel } from "@/components/oracle/VerdictPanel";
 import { AgentActivityPanel } from "@/components/oracle/AgentActivity";
 import { FindingsList } from "@/components/oracle/FindingsList";
 import { WhyThisScore } from "@/components/oracle/WhyThisScore";
@@ -12,7 +13,6 @@ import {
   MetricCard,
   OracleCard,
   OracleCardHeader,
-  RiskLabelChip,
   SectionHeader,
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
@@ -149,18 +149,20 @@ export default function OracleNFTMonitor() {
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
             NFT Monitoring
           </div>
-          <div className="flex items-center gap-3">
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-zinc-50">
-              {coll.name}
-            </h1>
-            <RiskLabelChip label={report.riskLabel} />
-          </div>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-zinc-50">
+            {coll.name}
+          </h1>
           <div className="font-mono text-[11px] text-zinc-500">
             {coll.contract} · {coll.chain}
           </div>
         </div>
         <EntitySearch />
       </header>
+
+      {/* Verdict — the single top-level block that owns status,
+          score, and the short explanation. Everything below is the
+          dashboard detail view. */}
+      <VerdictPanel report={report} status={state.status} />
 
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <MetricCard
@@ -191,7 +193,7 @@ export default function OracleNFTMonitor() {
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <IntelligencePanel report={report} status={state.status} />
+          <IntelligencePanel report={report} />
 
           <div className="grid gap-6 md:grid-cols-3">
             <OracleCard className="p-5">

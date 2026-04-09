@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Droplets, ExternalLink, Lock, ShieldAlert, Users } from "lucide-react";
 import { EntitySearch } from "@/components/oracle/EntitySearch";
 import { IntelligencePanel } from "@/components/oracle/IntelligencePanel";
+import { VerdictPanel } from "@/components/oracle/VerdictPanel";
 import { AgentActivityPanel } from "@/components/oracle/AgentActivity";
 import { FindingsList } from "@/components/oracle/FindingsList";
 import { WhyThisScore } from "@/components/oracle/WhyThisScore";
@@ -154,6 +155,11 @@ export default function OracleTokenAnalyzer() {
         <EntitySearch />
       </header>
 
+      {/* Verdict — the single top-level block that owns status,
+          score, and the short explanation. Everything below is the
+          dashboard detail view. */}
+      <VerdictPanel report={report} status={state.status} />
+
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <MetricCard
           label="Market cap"
@@ -188,7 +194,7 @@ export default function OracleTokenAnalyzer() {
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <IntelligencePanel report={report} status={state.status} />
+          <IntelligencePanel report={report} />
 
           <OracleCard>
             <OracleCardHeader title="Liquidity pools" subtitle={`${token.liquidityPools.length} active`} />
