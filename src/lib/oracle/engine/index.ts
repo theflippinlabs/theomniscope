@@ -11,6 +11,7 @@ export * from "./conflicts";
 export {
   prioritizeFindings,
   reduceAlertNoise,
+  rewriteAlerts,
   alertSummaryFrom,
   buildExecutiveSummary,
   buildWhyThisMatters,

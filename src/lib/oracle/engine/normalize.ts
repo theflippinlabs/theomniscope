@@ -1,31 +1,34 @@
 /**
- * Output normalization layer.
+ * Output normalization layer — intelligence expression polish.
  *
- * The final step of the Command Brain pipeline. Runs AFTER every agent
- * has completed and AFTER risk scoring and synthesis. Its job is to
- * transform the raw Investigation into a cleaner, more consistent
- * shape that flows unchanged to the legacy adapter and any external
- * consumer.
+ * The final post-processing step of the Command Brain pipeline. Runs
+ * after every agent, after risk scoring, and after synthesis. Produces
+ * the sharp, direct, trustworthy output the UI displays.
  *
  * Responsibilities:
  *  - Deduplicate and prioritize findings across all agents
- *  - Reduce alert noise (dedupe, drop info/low, cap count)
- *  - Produce a short, direct 1–2 line executive summary
- *  - Produce a coherent "why this matters" paragraph
- *  - Guarantee the same output shape/format regardless of entity type
+ *  - Reduce and REWRITE alert titles for clarity
+ *  - Produce a sharp, natural 1–2 sentence executive summary with
+ *    the top 2–3 drivers inlined as prose
+ *  - Produce a crisp "why this matters" paragraph that names the
+ *    dominant contributor and narrates conflicts cleanly
+ *  - Guarantee identical structure across wallet / token / NFT so the
+ *    UI never sees entity-type phrasing drift
  *
  * This file does NOT modify any UI, component, page, or style. It only
- * transforms the data the existing UI already reads via the adapter.
+ * transforms the data the UI already reads via the legacy adapter.
  * The existing agent system, pipeline, and scoring logic are preserved
- * intact — normalization is additive post-processing.
+ * intact — normalization is additive post-processing only.
  */
 
 import type {
   Alert,
   AlertSummary,
   Conflict,
+  EntityType,
   Finding,
   Investigation,
+  RiskLabel,
   ScoreBreakdownEntry,
   Severity,
 } from "./types";
@@ -42,16 +45,144 @@ function normalizeKey(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-// ---------- findings ----------
+// ---------- title cleanup ----------
 
 /**
- * Deduplicate and prioritize findings.
+ * Strip filler words and bracketed metadata from a finding/alert
+ * title so it reads naturally when composed into a sentence.
  *
- * Two findings with the same normalized title are considered
- * duplicates; the higher-severity version wins. The result is sorted
- * most-severe-first and capped to `max` entries so the UI never has
- * to render forty redundant rows.
+ * Examples:
+ *   "High sell tax (25%)"        → "high sell tax"
+ *   "Honeypot pattern detected"  → "honeypot pattern"
+ *   "Possible wash-trade signature" → "wash-trade signature"
+ *   "Mixer-linked funding detected" → "mixer-linked funding"
  */
+function cleanTitle(title: string): string {
+  let t = title.trim();
+  // Strip trailing parenthetical info
+  t = t.replace(/\s*\([^)]*\)\s*$/g, "");
+  // Strip common trailing filler verbs
+  t = t.replace(
+    /\s+(detected|observed|triggered|identified|flagged)\s*$/i,
+    "",
+  );
+  // Strip hedging prefixes
+  t = t.replace(/^(possible|potential|suspected)\s+/i, "");
+  return t.trim();
+}
+
+// ---------- driver extraction ----------
+
+/**
+ * Extract 2–3 clean driver phrases from the top findings.
+ *
+ * Only critical / high-severity findings are eligible as drivers —
+ * anything medium or below is considered too weak to headline an
+ * executive summary. Falls back to the top weighted agent when no
+ * severe findings exist so the summary always has *something* to say.
+ */
+function extractDrivers(
+  topFindings: Finding[],
+  scoreBreakdown: ScoreBreakdownEntry[],
+  max = 3,
+): string[] {
+  const severe = topFindings.filter(
+    (f) => f.severity === "critical" || f.severity === "high",
+  );
+  if (severe.length > 0) {
+    const seen = new Set<string>();
+    const drivers: string[] = [];
+    for (const f of severe) {
+      const phrase = cleanTitle(f.title).toLowerCase();
+      if (!phrase || seen.has(phrase)) continue;
+      seen.add(phrase);
+      drivers.push(phrase);
+      if (drivers.length >= max) break;
+    }
+    return drivers;
+  }
+  const top = scoreBreakdown[0];
+  if (top && top.rawScore > 15) {
+    return [top.agent.toLowerCase()];
+  }
+  return [];
+}
+
+function joinNatural(items: string[]): string {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function capitalize(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Map an entity type to the natural noun used in summaries. The noun
+ * is identical across every analysis of the same type so the UI never
+ * sees phrasing drift between wallet / token / NFT outputs.
+ */
+function entityNoun(type: EntityType | string): string {
+  switch (type) {
+    case "wallet":
+      return "wallet";
+    case "token":
+      return "token";
+    case "nft_collection":
+      return "collection";
+    case "mixed":
+      return "target";
+    default:
+      return String(type);
+  }
+}
+
+// ---------- alert rewriting ----------
+
+/**
+ * Small replacement table that rewrites clunky agent-generated alert
+ * titles into clean, professional ones. The rewrites are deliberately
+ * conservative — anything not in the table passes through cleanTitle
+ * and keeps its original wording.
+ */
+const ALERT_TITLE_REWRITES: Array<[RegExp, string]> = [
+  [/wash[- ]trade heuristic triggered/i, "Wash-trade pattern"],
+  [/wash[- ]trade heuristic/i, "Wash-trade pattern"],
+  [/honeypot indicators/i, "Honeypot contract"],
+  [/mixer[- ]origin funds/i, "Mixer-origin funds"],
+  [/narrative silence/i, "Communication decline"],
+  [/community anomaly/i, "Community activity anomaly"],
+];
+
+function rewriteAlertTitle(title: string): string {
+  for (const [pattern, replacement] of ALERT_TITLE_REWRITES) {
+    if (pattern.test(title)) return replacement;
+  }
+  return capitalize(cleanTitle(title));
+}
+
+/**
+ * Rewrite alerts for clarity. Only titles are normalized — reasons
+ * are produced by the agents with specific context and are left
+ * intact. Internal per-agent outputs are also untouched; this function
+ * produces a new list for display at the adapter boundary.
+ *
+ * Null-safe: null / undefined / title-less entries are dropped.
+ */
+export function rewriteAlerts(alerts: Alert[]): Alert[] {
+  const out: Alert[] = [];
+  for (const a of alerts) {
+    if (!a || !a.title) continue;
+    out.push({ ...a, title: rewriteAlertTitle(a.title) });
+  }
+  return out;
+}
+
+// ---------- findings ----------
+
 export function prioritizeFindings(
   findings: Finding[],
   max = 12,
@@ -59,7 +190,9 @@ export function prioritizeFindings(
   const seen = new Map<string, Finding>();
   for (const f of findings) {
     if (!f || !f.title) continue;
-    const key = normalizeKey(f.title);
+    // Dedup key uses the cleaned title so "Possible wash-trade signature"
+    // and "wash-trade signature" collapse to the same entry.
+    const key = normalizeKey(cleanTitle(f.title));
     const existing = seen.get(key);
     if (
       !existing ||
@@ -77,23 +210,20 @@ export function prioritizeFindings(
 // ---------- alerts ----------
 
 /**
- * Reduce alert noise.
+ * Reduce alert noise at the display boundary.
  *
- * Rules:
- *  - Deduplicate by normalized title
- *  - Drop info and low level alerts (they belong in findings, not in
- *    the alert strip)
- *  - Keep the highest-severity version when duplicates exist
- *  - Sort most-severe-first
- *  - Cap at `max` entries
+ *   1. Rewrite titles for clarity (rewriteAlerts)
+ *   2. Drop info / low level alerts (they belong in findings)
+ *   3. Deduplicate by normalized title
+ *   4. Sort most-severe-first
+ *   5. Cap at `max`
  *
- * Internal agent outputs are left untouched so agent-level debugging
- * still sees every raw alert. This reduction happens at the display
- * boundary only.
+ * Internal per-agent outputs keep their unfiltered view for debugging.
  */
 export function reduceAlertNoise(alerts: Alert[], max = 6): Alert[] {
+  const rewritten = rewriteAlerts(alerts);
   const seen = new Map<string, Alert>();
-  for (const a of alerts) {
+  for (const a of rewritten) {
     if (!a || !a.title) continue;
     if (a.level === "info" || a.level === "low") continue;
     const key = normalizeKey(a.title);
@@ -108,7 +238,7 @@ export function reduceAlertNoise(alerts: Alert[], max = 6): Alert[] {
   return sorted.slice(0, max);
 }
 
-/** Compute an AlertSummary from a reduced alert list. */
+/** Compute an AlertSummary from an alert list. */
 export function alertSummaryFrom(alerts: Alert[]): AlertSummary {
   return {
     critical: alerts.filter((a) => a.level === "critical").length,
@@ -121,93 +251,120 @@ export function alertSummaryFrom(alerts: Alert[]): AlertSummary {
 
 // ---------- summaries ----------
 
-function joinNatural(items: string[]): string {
-  if (items.length === 0) return "";
-  if (items.length === 1) return items[0];
-  if (items.length === 2) return `${items[0]} and ${items[1]}`;
-  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
-}
-
 /**
- * Short, direct 1–2 line executive summary.
+ * Sharp, natural-language executive summary.
  *
- * The format is IDENTICAL across wallet / token / NFT so the UI gets a
- * predictable, consistent output regardless of entity type:
+ * 1–2 sentences, direct, no numeric clutter (score & confidence are
+ * rendered separately by the UI). The format adapts by risk band but
+ * is otherwise IDENTICAL across wallet / token / NFT so there is no
+ * phrasing drift between entity types.
  *
- *   "{Label} — {risk label} at score {X}/100 (confidence {Y}%). {driver sentence}"
- *
- * The driver sentence prefers named critical/high findings and falls
- * back to the top weighted contributor if none exist.
+ * Examples:
+ *   "High-risk token due to active mint authority, thin liquidity, and
+ *    wash-trade pattern. Treat with caution."
+ *   "Wallet shows normal behavior with no critical risk signals detected."
+ *   "Elevated-risk wallet — mixer-linked funding. Monitor before adjusting
+ *    exposure."
+ *   "Collection shows mixed signals — wash-trade signature. Watch for
+ *    changes."
+ *   "Preliminary assessment of this token. Data coverage is limited;
+ *    re-run before acting."
  */
 export function buildExecutiveSummary(input: {
   entityLabel: string;
+  entityType: EntityType | string;
   score: number;
   confidence: number;
-  riskLabel: string;
+  riskLabel: RiskLabel | string;
   topFindings: Finding[];
   scoreBreakdown: ScoreBreakdownEntry[];
 }): string {
-  const {
-    entityLabel,
-    score,
-    confidence,
-    riskLabel,
-    topFindings,
-    scoreBreakdown,
-  } = input;
+  const { confidence, entityType, topFindings, scoreBreakdown, riskLabel } =
+    input;
+  const noun = entityNoun(entityType);
+  const drivers = extractDrivers(topFindings, scoreBreakdown, 3);
+  const driverPhrase = joinNatural(drivers);
 
-  const headline = topFindings
-    .filter((f) => f.severity === "critical" || f.severity === "high")
-    .slice(0, 2)
-    .map((f) => f.title);
-
-  const topDriver = scoreBreakdown[0]?.agent;
-
-  let driver: string;
-  if (headline.length > 0) {
-    driver = `Driven by ${joinNatural(headline).toLowerCase()}.`;
-  } else if (topDriver) {
-    driver = `Primary driver: ${topDriver.toLowerCase()}.`;
-  } else {
-    driver = "No dominant driver surfaced.";
+  // Low confidence overrides regardless of score. Prevents the UI from
+  // showing a scary verdict when Oracle doesn't have enough data.
+  if (confidence < 35 || riskLabel === "Under Review") {
+    return driverPhrase
+      ? `Preliminary assessment of this ${noun} — limited data around ${driverPhrase}. Re-run with more coverage before acting.`
+      : `Preliminary assessment of this ${noun}. Data coverage is limited; re-run before acting.`;
   }
 
-  return `${entityLabel} — ${riskLabel.toLowerCase()} at score ${score}/100 (confidence ${confidence}%). ${driver}`;
+  if (riskLabel === "High Risk") {
+    return driverPhrase
+      ? `High-risk ${noun} due to ${driverPhrase}. Treat with caution.`
+      : `High-risk ${noun}: multiple adverse signals present. Treat with caution.`;
+  }
+
+  if (riskLabel === "Elevated Risk") {
+    return driverPhrase
+      ? `Elevated-risk ${noun} — ${driverPhrase}. Monitor before adjusting exposure.`
+      : `Elevated-risk ${noun}. Review recent activity before adjusting exposure.`;
+  }
+
+  if (riskLabel === "Neutral") {
+    return driverPhrase
+      ? `${capitalize(noun)} shows mixed signals — ${driverPhrase}. Watch for changes.`
+      : `${capitalize(noun)} shows mixed signals with no dominant driver. Watch for changes.`;
+  }
+
+  // Promising (or any unexpected label)
+  return `${capitalize(noun)} shows normal behavior with no critical risk signals detected.`;
 }
 
 /**
- * "Why this matters" paragraph — the deeper context the UI shows
- * below the executive summary. Conflicts are narrated rather than
- * exposed as raw contradictions.
+ * "Why this matters" paragraph — a crisp 2–4 sentence context note
+ * that explains the score trajectory, identifies the dominant
+ * contributor, narrates any conflicts, and flags low confidence.
+ * Conflicts are described in narrative form, never as raw objects.
  */
 export function buildWhyThisMatters(input: {
   score: number;
   confidence: number;
   conflicts: Conflict[];
   topFindings: Finding[];
+  scoreBreakdown?: ScoreBreakdownEntry[];
 }): string {
-  const { score, confidence, conflicts, topFindings } = input;
+  const { score, confidence, conflicts, topFindings, scoreBreakdown } = input;
 
   const base =
     score >= 70
-      ? "High-risk signals rarely reverse without intervention. When multiple severe findings align, historical base rates for adverse outcomes are materially elevated."
+      ? "Severe signals rarely reverse without intervention. Historical base rates for adverse outcomes are materially elevated when multiple high-severity findings align."
       : score >= 40
-        ? "The combined weight of medium-severity factors does not indicate imminent risk, but a single additional anomaly could tip the entity into a harmful state. Maintain watchlist coverage."
-        : "A low score is not an endorsement. Oracle reports what it can observe — confidence reflects what it cannot. Continued monitoring is still recommended for positions of material size.";
+        ? "Medium-severity factors alone do not indicate imminent risk, but a single additional anomaly could tip this entity into a harmful state."
+        : "A low score is an observation, not an endorsement. Continued monitoring is still recommended for any position of material size.";
 
   const extras: string[] = [];
-  if (confidence < 50) {
-    extras.push("Confidence is below 50%; treat findings as preliminary.");
+
+  // Dominant contributor — only surface if it carries real weight
+  if (scoreBreakdown && scoreBreakdown.length > 0) {
+    const top = scoreBreakdown[0];
+    if (top.rawScore > 10 && top.weighted > 4) {
+      extras.push(
+        `${top.agent} is the dominant contributor, carrying ${Math.round(top.weighted)} weighted points.`,
+      );
+    }
   }
-  const criticalCount = topFindings.filter((f) => f.severity === "critical").length;
+
+  const criticalCount = topFindings.filter(
+    (f) => f.severity === "critical",
+  ).length;
   if (criticalCount > 0) {
     extras.push(
       `${criticalCount} critical finding${criticalCount === 1 ? "" : "s"} require immediate attention.`,
     );
   }
+
+  if (confidence < 50) {
+    extras.push("Confidence is below 50%; treat findings as preliminary.");
+  }
+
   if (conflicts.length > 0) {
     extras.push(
-      `${conflicts.length} agent disagreement${conflicts.length === 1 ? "" : "s"} noted; both views preserved.`,
+      `${conflicts.length} agent disagreement${conflicts.length === 1 ? "" : "s"} noted; both views preserved in the per-agent trail.`,
     );
   }
 
@@ -219,15 +376,16 @@ export function buildWhyThisMatters(input: {
 /**
  * Normalize an Investigation — the pipeline's final polish step.
  *
- * Returns a new Investigation object (no in-place mutation). Agent
- * outputs are left untouched so the Agent Activity panel in the UI
- * continues to display the raw per-agent reasoning trail.
+ * Returns a new Investigation object. Agent outputs are left untouched
+ * so the per-agent Agent Activity panel in the UI continues to render
+ * the raw reasoning trail exactly as each agent produced it.
  */
 export function normalizeInvestigation(inv: Investigation): Investigation {
   const topFindings = prioritizeFindings(inv.topFindings);
 
   const executiveSummary = buildExecutiveSummary({
     entityLabel: inv.entity.label,
+    entityType: inv.entityType,
     score: inv.overallRiskScore,
     confidence: inv.overallConfidence.value,
     riskLabel: inv.riskLabel,
@@ -240,6 +398,7 @@ export function normalizeInvestigation(inv: Investigation): Investigation {
     confidence: inv.overallConfidence.value,
     conflicts: inv.conflicts,
     topFindings,
+    scoreBreakdown: inv.scoreBreakdown,
   });
 
   return {

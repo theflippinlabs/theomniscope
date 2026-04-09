@@ -137,21 +137,29 @@ export function aggregateConfidence(
   const base = avg * coverage;
   const value = Math.max(0, Math.round(base - conflictPenalty));
 
-  const reasons: string[] = [];
-  reasons.push(`${outputs.length}/${expected} agents contributed`);
-  if (coverage < 1)
-    reasons.push(
-      `coverage capped at ${(coverage * 100).toFixed(0)}% (missing agents)`,
-    );
-  if (conflictPenalty > 0)
-    reasons.push(`-${conflictPenalty} from agent conflicts`);
+  // Build a readable, human-facing rationale. The wording is
+  // deliberately factual and tied to data quality — not vibes.
+  const parts: string[] = [];
+  parts.push(`${outputs.length} of ${expected} agents contributed`);
+  if (coverage < 1) {
+    parts.push(`coverage ${Math.round(coverage * 100)}%`);
+  }
   const partial = outputs.filter((o) => o.status !== "ok");
-  if (partial.length > 0)
-    reasons.push(`${partial.length} agent(s) running on partial data`);
+  if (partial.length > 0) {
+    const names = partial.map((o) => o.agentName).join(", ");
+    parts.push(
+      `${partial.length} running on partial data (${names})`,
+    );
+  }
+  if (conflictPenalty > 0) {
+    parts.push(
+      `reduced by ${conflictPenalty} for agent disagreement`,
+    );
+  }
 
   return {
     value,
-    rationale: reasons.join("; "),
+    rationale: parts.join("; ") + ".",
   };
 }
 
