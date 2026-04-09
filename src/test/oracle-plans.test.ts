@@ -226,24 +226,24 @@ describe("plans — analysis daily cap", () => {
   it("checkAnalysisQuota reports the full cap when nothing is consumed", async () => {
     const gate = await checkAnalysisQuota(freeUser, store);
     expect(gate.allowed).toBe(true);
-    expect(gate.remaining).toBe(5);
+    expect(gate.remaining).toBe(10);
     expect(gate.resetAt).toBeTruthy();
   });
 
   it("consumeAnalysis decrements the free plan counter", async () => {
     const a = await consumeAnalysis(freeUser, store);
     expect(a.allowed).toBe(true);
-    expect(a.remaining).toBe(4);
+    expect(a.remaining).toBe(9);
 
     const b = await consumeAnalysis(freeUser, store);
-    expect(b.remaining).toBe(3);
+    expect(b.remaining).toBe(8);
 
     const c = await consumeAnalysis(freeUser, store);
-    expect(c.remaining).toBe(2);
+    expect(c.remaining).toBe(7);
   });
 
   it("consumeAnalysis returns a limit-reason denial once the cap is exhausted", async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       await consumeAnalysis(freeUser, store);
     }
     const denied = await consumeAnalysis(freeUser, store);
@@ -254,16 +254,18 @@ describe("plans — analysis daily cap", () => {
     expect(denied.message).toBe("You've reached your daily limit.");
   });
 
-  it("pro and elite plans report unlimited remaining", async () => {
+  it("pro plan enforces a 100/day cap, elite is unlimited", async () => {
+    // Elite has no cap — remains undefined forever
     for (let i = 0; i < 20; i++) {
-      const p = await consumeAnalysis(proUser, store);
-      expect(p.allowed).toBe(true);
-      expect(p.remaining).toBeUndefined();
-
       const e = await consumeAnalysis(eliteUser, store);
       expect(e.allowed).toBe(true);
       expect(e.remaining).toBeUndefined();
     }
+
+    // Pro has a 100/day cap — first consume reports 99 remaining
+    const firstPro = await consumeAnalysis(proUser, store);
+    expect(firstPro.allowed).toBe(true);
+    expect(firstPro.remaining).toBe(99);
   });
 
   it("checkAnalysisQuota does NOT consume a slot", async () => {
@@ -288,20 +290,18 @@ describe("plans — analysis daily cap", () => {
     // mutate the catalog, we check the default free flow works:
     const gate = await consumeAnalysis(stranger, store);
     expect(gate.allowed).toBe(true);
-    expect(gate.remaining).toBe(4);
+    expect(gate.remaining).toBe(9);
     // And we check that a locked override blocks via canAccessFeature
     expect(canAccessFeature(locked, "analysis")).toBe(false);
   });
 
-  it("remainingAnalyses returns the correct count for free and infinity for pro/elite", async () => {
-    expect(await remainingAnalyses(freeUser, store)).toBe(5);
+  it("remainingAnalyses returns the correct count for free/pro and infinity for elite", async () => {
+    expect(await remainingAnalyses(freeUser, store)).toBe(10);
     await consumeAnalysis(freeUser, store);
     await consumeAnalysis(freeUser, store);
-    expect(await remainingAnalyses(freeUser, store)).toBe(3);
+    expect(await remainingAnalyses(freeUser, store)).toBe(8);
 
-    expect(await remainingAnalyses(proUser, store)).toBe(
-      Number.POSITIVE_INFINITY,
-    );
+    expect(await remainingAnalyses(proUser, store)).toBe(100);
     expect(await remainingAnalyses(eliteUser, store)).toBe(
       Number.POSITIVE_INFINITY,
     );
@@ -311,34 +311,34 @@ describe("plans — analysis daily cap", () => {
     const alice: User = { id: "alice", plan: "free" };
     const bob: User = { id: "bob", plan: "free" };
 
-    for (let i = 0; i < 5; i++) await consumeAnalysis(alice, store);
+    for (let i = 0; i < 10; i++) await consumeAnalysis(alice, store);
 
     const aDenied = await consumeAnalysis(alice, store);
     expect(aDenied.allowed).toBe(false);
 
     const bAllowed = await consumeAnalysis(bob, store);
     expect(bAllowed.allowed).toBe(true);
-    expect(bAllowed.remaining).toBe(4);
+    expect(bAllowed.remaining).toBe(9);
   });
 
   it("anonymous callers share a single counter bucket", async () => {
     await consumeAnalysis(null, store);
     await consumeAnalysis(null, store);
-    expect(await remainingAnalyses(null, store)).toBe(3);
+    expect(await remainingAnalyses(null, store)).toBe(8);
   });
 
   it("reset clears a single user's counters", async () => {
     await consumeAnalysis(freeUser, store);
     await consumeAnalysis(freeUser, store);
     await store.reset(freeUser.id);
-    expect(await remainingAnalyses(freeUser, store)).toBe(5);
+    expect(await remainingAnalyses(freeUser, store)).toBe(10);
   });
 });
 
 // ---------- integration: gating + limits ----------
 
 describe("plans — integration with existing pipeline", () => {
-  it("a free user's analysis gate denies after 5 runs but memory always denies", async () => {
+  it("a free user's analysis gate denies after 10 runs but memory always denies", async () => {
     const store = new InMemoryUsageStore();
     const user: User = { id: "integrate-1", plan: "free" };
 
@@ -347,8 +347,8 @@ describe("plans — integration with existing pipeline", () => {
     expect(gateSignals(user).allowed).toBe(false);
     expect(gateInvestigation(user).allowed).toBe(false);
 
-    // Analysis runs 5 times then blocks
-    for (let i = 0; i < 5; i++) {
+    // Analysis runs 10 times then blocks
+    for (let i = 0; i < 10; i++) {
       const g = await consumeAnalysis(user, store);
       expect(g.allowed).toBe(true);
     }
@@ -356,7 +356,7 @@ describe("plans — integration with existing pipeline", () => {
     expect(blocked.allowed).toBe(false);
   });
 
-  it("a pro user gets memory + signals + unlimited analyses, investigation stays locked", async () => {
+  it("a pro user gets memory + signals + a 100/day cap, investigation stays locked", async () => {
     const store = new InMemoryUsageStore();
     const user: User = { id: "integrate-2", plan: "pro" };
 
@@ -367,6 +367,7 @@ describe("plans — integration with existing pipeline", () => {
     for (let i = 0; i < 10; i++) {
       const g = await consumeAnalysis(user, store);
       expect(g.allowed).toBe(true);
+      expect(g.remaining).toBe(100 - (i + 1));
     }
   });
 
@@ -488,7 +489,7 @@ describe("plans — upgrade trigger matrix", () => {
   it("free user hitting daily cap gets reason=limit and upgradeTarget=pro", async () => {
     const store = new InMemoryUsageStore();
     const user: User = { id: "cap-test", plan: "free" };
-    for (let i = 0; i < 5; i++) await consumeAnalysis(user, store);
+    for (let i = 0; i < 10; i++) await consumeAnalysis(user, store);
 
     const denied = await consumeAnalysis(user, store);
     expect(denied.allowed).toBe(false);
@@ -506,7 +507,7 @@ describe("plans — upgrade trigger matrix", () => {
     expect(gate.allowed).toBe(true);
     expect(gate.reason).toBe("ok");
     expect(gate.message).toBe("");
-    expect(gate.remaining).toBe(4);
+    expect(gate.remaining).toBe(9);
     expect(gate.upgradeTarget).toBeUndefined();
   });
 
@@ -515,7 +516,7 @@ describe("plans — upgrade trigger matrix", () => {
   it("checkAnalysisQuota returns limit framing when exhausted", async () => {
     const store = new InMemoryUsageStore();
     const user: User = { id: "check-exhaust", plan: "free" };
-    for (let i = 0; i < 5; i++) await consumeAnalysis(user, store);
+    for (let i = 0; i < 10; i++) await consumeAnalysis(user, store);
     const gate = await checkAnalysisQuota(user, store);
     expect(gate.allowed).toBe(false);
     expect(gate.reason).toBe("limit");
@@ -631,7 +632,7 @@ describe("plans — gating with preview", () => {
   it("attaches a preview to a daily-cap denial", async () => {
     const store = new InMemoryUsageStore();
     const user: User = { id: "cap", plan: "free" };
-    for (let i = 0; i < 5; i++) await consumeAnalysis(user, store);
+    for (let i = 0; i < 10; i++) await consumeAnalysis(user, store);
     const denied = await consumeAnalysis(user, store, {
       preview: fakePreview,
     });

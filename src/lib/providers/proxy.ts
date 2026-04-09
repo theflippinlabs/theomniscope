@@ -24,6 +24,9 @@ export interface ProxyRequest {
 interface ProxyEnvelope<T> {
   data: T | null;
   error?: string;
+  plan?: string;
+  remaining?: number;
+  limit?: number;
 }
 
 /**
@@ -31,6 +34,10 @@ interface ProxyEnvelope<T> {
  * success, or null on any failure (no proxy URL configured, network
  * error, non-2xx status, invalid JSON, explicit null from the
  * server).
+ *
+ * When a Supabase session is active, the current access token is
+ * forwarded as `Authorization: Bearer <jwt>` so the edge function
+ * can resolve the caller, enforce the daily cap, and log usage.
  */
 export async function callOracleProxy<T>(
   request: ProxyRequest,
@@ -38,11 +45,27 @@ export async function callOracleProxy<T>(
 ): Promise<T | null> {
   if (!config.oracleProxyUrl) return null;
 
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  // Best-effort auth header attachment via dynamic import so the
+  // module never fails to load in test / non-browser contexts
+  // where Supabase env vars are not configured.
+  try {
+    const mod = await import("@/integrations/supabase/client");
+    const { data } = await mod.supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  } catch {
+    // ignore — fall through as anonymous caller
+  }
+
   const response = await safeFetchJson<ProxyEnvelope<T>>(
     config.oracleProxyUrl,
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify(request),
       timeoutMs: config.requestTimeoutMs,
     },

@@ -30,6 +30,7 @@
 // normalization (client-side) and makes the proxy a pure relay.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -42,6 +43,17 @@ const JSON_HEADERS = { ...CORS, "content-type": "application/json" };
 
 const MORALIS_API_KEY = Deno.env.get("MORALIS_API_KEY") ?? "";
 const RESERVOIR_API_KEY = Deno.env.get("RESERVOIR_API_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+// Daily caps per plan tier. Kept in sync with src/lib/plans/catalog.ts.
+const PLAN_DAILY_CAPS: Record<string, number> = {
+  free: 10,
+  pro: 100,
+  elite: Number.POSITIVE_INFINITY,
+};
 
 const CHAIN_IDS: Record<string, number> = {
   eth: 1,
@@ -167,6 +179,81 @@ async function fetchNftData(contract: string, chain: string) {
   return { collection };
 }
 
+// ---------- auth + quota helpers ----------
+
+interface CallerContext {
+  userId: string | null;
+  plan: string;
+  dailyUsed: number;
+}
+
+/**
+ * Resolve the caller from an `Authorization: Bearer <jwt>` header.
+ * Returns null when no valid session is found.
+ */
+async function resolveCaller(req: Request): Promise<CallerContext | null> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
+
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
+  if (!token) return null;
+
+  // Validate the JWT against Supabase Auth.
+  const authedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: userResp } = await authedClient.auth.getUser();
+  const user = userResp?.user;
+  if (!user) return null;
+
+  // Use the service role client for reads that need to bypass RLS.
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const { data: usage } = await admin.rpc("get_oracle_usage_today", {
+    p_user_id: user.id,
+  });
+
+  return {
+    userId: user.id,
+    plan: (profile?.plan as string) ?? "free",
+    dailyUsed: typeof usage === "number" ? usage : 0,
+  };
+}
+
+/**
+ * Record a successful (or attempted) query. Uses the service role
+ * client so RLS doesn't interfere with cross-user append.
+ */
+async function logUsage(
+  userId: string,
+  type: string,
+  identifier: string,
+  chain: string,
+  plan: string,
+): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return;
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  try {
+    await admin.rpc("increment_oracle_usage", {
+      p_user_id: userId,
+      p_query_type: type,
+      p_identifier: identifier,
+      p_chain: chain,
+      p_plan: plan,
+    });
+  } catch (_err) {
+    // Usage logging must never block the caller.
+  }
+}
+
 // ---------- handler ----------
 
 interface RequestBody {
@@ -206,6 +293,26 @@ serve(async (req: Request) => {
     );
   }
 
+  // Resolve the authenticated caller (if any) and enforce the daily
+  // cap. Anonymous callers get the `free` quota, shared across a
+  // single anonymous bucket — sign-in is required for persistence.
+  const caller = await resolveCaller(req);
+  if (caller) {
+    const cap = PLAN_DAILY_CAPS[caller.plan] ?? PLAN_DAILY_CAPS.free;
+    if (Number.isFinite(cap) && caller.dailyUsed >= cap) {
+      return new Response(
+        JSON.stringify({
+          error: "daily limit reached",
+          data: null,
+          plan: caller.plan,
+          remaining: 0,
+          limit: cap,
+        }),
+        { status: 429, headers: JSON_HEADERS },
+      );
+    }
+  }
+
   const chain = body.chain ?? "eth";
   let data: unknown = null;
 
@@ -221,5 +328,32 @@ serve(async (req: Request) => {
     data = null;
   }
 
-  return new Response(JSON.stringify({ data }), { headers: JSON_HEADERS });
+  // Log the usage (only for authenticated callers). Anonymous
+  // traffic is still rate-limitable at the infrastructure layer.
+  if (caller?.userId) {
+    await logUsage(
+      caller.userId,
+      body.type,
+      body.identifier,
+      chain,
+      caller.plan,
+    );
+  }
+
+  const cap = caller
+    ? PLAN_DAILY_CAPS[caller.plan] ?? PLAN_DAILY_CAPS.free
+    : undefined;
+  const remaining =
+    caller && cap !== undefined && Number.isFinite(cap)
+      ? Math.max(0, cap - (caller.dailyUsed + 1))
+      : undefined;
+
+  return new Response(
+    JSON.stringify({
+      data,
+      plan: caller?.plan,
+      remaining,
+    }),
+    { headers: JSON_HEADERS },
+  );
 });

@@ -8,7 +8,8 @@
 
 import type { Plan, PlanTier } from "./types";
 
-const FREE_DAILY_ANALYSIS_CAP = 5;
+const FREE_DAILY_ANALYSIS_CAP = 10;
+const PRO_DAILY_ANALYSIS_CAP = 100;
 
 export const PLAN_CATALOG: Record<PlanTier, Plan> = {
   free: {
@@ -49,7 +50,7 @@ export const PLAN_CATALOG: Record<PlanTier, Plan> = {
     tier: "pro",
     name: "Pro",
     description:
-      "Unlimited analyses with full memory history, live signals, and standard scoring. No deep investigations.",
+      "Up to 100 analyses per day with full memory history, live signals, and standard scoring. No deep investigations.",
     features: {
       analysis: {
         allowed: true,
@@ -72,7 +73,7 @@ export const PLAN_CATALOG: Record<PlanTier, Plan> = {
       },
     },
     limits: {
-      dailyAnalysisCap: Number.POSITIVE_INFINITY,
+      dailyAnalysisCap: PRO_DAILY_ANALYSIS_CAP,
     },
   },
   elite: {

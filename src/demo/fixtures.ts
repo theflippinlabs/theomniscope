@@ -429,73 +429,13 @@ export const WATCHLIST_FIXTURES: WatchlistItem[] = [
 ];
 
 // ---------- HISTORICAL CALLS ----------
+//
+// Intentionally empty. The product previously shipped a seeded
+// list of "historical calls" with fabricated verdicts. That was
+// removed — Oracle's track record will populate from real
+// resolved investigations, not from fixtures.
 
-export const HISTORICAL_CALLS: OracleHistoricalCall[] = [
-  {
-    id: "hc_1",
-    entity: "Seraph Protocol (SRPH)",
-    entityType: "token",
-    calledAt: "2026-03-11",
-    resolvedAt: "2026-03-14",
-    call: "Elevated rug probability. Deployer held 72% of supply; sell tax mutable.",
-    verdict: "correct",
-    confidence: 83,
-    delta: "-92% floor in 72h",
-    explanation:
-      "Liquidity was withdrawn at block 19,842,701. Token price collapsed as predicted.",
-  },
-  {
-    id: "hc_2",
-    entity: "Obscura Labs (OBSC)",
-    entityType: "token",
-    calledAt: "2026-02-28",
-    resolvedAt: "2026-03-05",
-    call: "Suspicious social growth vs on-chain activity. Hype without usage.",
-    verdict: "partial",
-    confidence: 61,
-    delta: "-34% in 7d",
-    explanation:
-      "Price correction followed but no full rug. Team remained active. Downgraded to caution.",
-  },
-  {
-    id: "hc_3",
-    entity: "Luminar Genesis",
-    entityType: "nft",
-    calledAt: "2026-02-02",
-    resolvedAt: "2026-04-01",
-    call: "Healthy accumulation. Distribution improving. Narrative consistent.",
-    verdict: "correct",
-    confidence: 78,
-    delta: "+48% floor",
-    explanation:
-      "Holder count and floor both expanded steadily with no adverse signals.",
-  },
-  {
-    id: "hc_4",
-    entity: "0x8a7e…5e2c (Whale 042)",
-    entityType: "wallet",
-    calledAt: "2026-01-18",
-    call: "Institutional flow pattern. Low risk. Monitor for unusual mixer usage.",
-    verdict: "open",
-    confidence: 79,
-    delta: "stable",
-    explanation:
-      "Continues to exhibit predictable CEX/DeFi cycles. No mixer usage observed.",
-  },
-  {
-    id: "hc_5",
-    entity: "NovaLend V2",
-    entityType: "token",
-    calledAt: "2026-03-22",
-    resolvedAt: "2026-03-29",
-    call: "High risk. Proxy contract with upgradeable logic controlled by EOA.",
-    verdict: "correct",
-    confidence: 88,
-    delta: "-100%",
-    explanation:
-      "Upgrade routed withdrawals to attacker-controlled contract. Rug confirmed.",
-  },
-];
+export const HISTORICAL_CALLS: OracleHistoricalCall[] = [];
 
 // ---------- INVESTIGATIONS ----------
 

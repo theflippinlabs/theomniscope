@@ -1,9 +1,12 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { I18nProvider } from "@/lib/i18n";
+import { initAuthListener } from "@/lib/store/useAuthStore";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Oracle Sentinel — public surface
 import OracleLanding from "@/pages/oracle/OracleLanding";
@@ -11,6 +14,7 @@ import OracleMethodology from "@/pages/oracle/OracleMethodology";
 import OracleSecurity from "@/pages/oracle/OracleSecurity";
 import OracleTransparency from "@/pages/oracle/OracleTransparency";
 import OracleLegal from "@/pages/oracle/OracleLegal";
+import Login from "@/pages/auth/Login";
 
 // Oracle Sentinel — command center surface
 import { OracleAppShell } from "@/components/oracle/OracleAppShell";
@@ -31,6 +35,9 @@ import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppContent() {
+  // Subscribe to Supabase auth state once for the whole app.
+  useEffect(() => initAuthListener(), []);
+
   return (
     <BrowserRouter>
       <Routes>
@@ -40,9 +47,17 @@ function AppContent() {
         <Route path="/security" element={<OracleSecurity />} />
         <Route path="/transparency" element={<OracleTransparency />} />
         <Route path="/legal" element={<OracleLegal />} />
+        <Route path="/login" element={<Login />} />
 
-        {/* Oracle Sentinel command surface */}
-        <Route path="/app" element={<OracleAppShell />}>
+        {/* Oracle Sentinel command surface — requires a Supabase session */}
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute>
+              <OracleAppShell />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<OracleCommand />} />
           <Route path="command" element={<OracleCommand />} />
           <Route path="analyze" element={<OracleAnalyze />} />

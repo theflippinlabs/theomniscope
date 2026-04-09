@@ -7,12 +7,16 @@
  * rename. New code should import from `@/demo/fixtures` directly.
  */
 
+// Note: HISTORICAL_CALLS has been removed from this re-export. The
+// "track record" page used to display fabricated verdicts; it now
+// renders a "No track record yet" empty state until a real ledger
+// of resolved analyses exists.
+
 export {
   WALLET_FIXTURES,
   TOKEN_FIXTURES,
   NFT_FIXTURES,
   WATCHLIST_FIXTURES,
-  HISTORICAL_CALLS,
   INVESTIGATIONS,
   REPORTS,
   LIVE_FEED,
