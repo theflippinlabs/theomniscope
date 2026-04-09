@@ -60,6 +60,25 @@ export class CommandBrain {
   }
 
   /**
+   * Swap the provider registry on this brain. Used by the HTTP
+   * provider install helper to replace the default mock registry
+   * with a hybrid registry (HTTP cache + mock fallback) without
+   * touching any agent, scoring, or pipeline logic.
+   */
+  setProviders(providers: ProviderRegistry): void {
+    this.providers = providers;
+  }
+
+  /**
+   * Read-only accessor for the current provider registry. Useful
+   * for tests that want to inspect the active registry without
+   * touching its internals.
+   */
+  getProviders(): ProviderRegistry {
+    return this.providers;
+  }
+
+  /**
    * Resolve an identifier into a fully populated entity. Tries the
    * provider registry in priority order based on the optional hint.
    */
