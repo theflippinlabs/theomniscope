@@ -137,23 +137,28 @@ export function aggregateConfidence(
   const base = avg * coverage;
   const value = Math.max(0, Math.round(base - conflictPenalty));
 
-  // Build a readable, human-facing rationale. The wording is
-  // deliberately factual and tied to data quality — not vibes.
+  // Decision-grade rationale. Factual, tied to data quality, no
+  // hedging. Reads as institutional prose rather than a dashboard
+  // tooltip.
   const parts: string[] = [];
-  parts.push(`${outputs.length} of ${expected} agents contributed`);
+  if (outputs.length === expected) {
+    parts.push(`All ${expected} agents contributed`);
+  } else {
+    parts.push(`${outputs.length} of ${expected} agents contributed`);
+  }
   if (coverage < 1) {
-    parts.push(`coverage ${Math.round(coverage * 100)}%`);
+    parts.push(`coverage at ${Math.round(coverage * 100)}%`);
   }
   const partial = outputs.filter((o) => o.status !== "ok");
   if (partial.length > 0) {
     const names = partial.map((o) => o.agentName).join(", ");
     parts.push(
-      `${partial.length} running on partial data (${names})`,
+      `${partial.length} operating on partial data (${names})`,
     );
   }
   if (conflictPenalty > 0) {
     parts.push(
-      `reduced by ${conflictPenalty} for agent disagreement`,
+      `confidence adjusted by ${conflictPenalty} points for agent disagreement`,
     );
   }
 

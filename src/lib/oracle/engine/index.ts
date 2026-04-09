@@ -12,6 +12,7 @@ export {
   prioritizeFindings,
   reduceAlertNoise,
   rewriteAlerts,
+  rewriteHedgingText,
   alertSummaryFrom,
   buildExecutiveSummary,
   buildWhyThisMatters,

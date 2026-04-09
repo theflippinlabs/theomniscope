@@ -182,7 +182,7 @@ describe("normalize — buildExecutiveSummary", () => {
     },
   ];
 
-  it("produces a sharp 1–2 sentence summary with drivers inlined as prose", () => {
+  it("produces a decisive 1–2 sentence summary with drivers inlined as prose", () => {
     const summary = buildExecutiveSummary({
       entityLabel: "MoonPaw Inu",
       entityType: "token",
@@ -195,19 +195,20 @@ describe("normalize — buildExecutiveSummary", () => {
       ],
       scoreBreakdown: baseBreakdown,
     });
-    expect(summary.toLowerCase()).toContain("high-risk token");
+    expect(summary.toLowerCase()).toContain("high risk identified");
+    expect(summary.toLowerCase()).toContain("token");
     expect(summary.toLowerCase()).toContain("active mint authority");
     expect(summary.toLowerCase()).toContain("thin liquidity");
-    expect(summary.toLowerCase()).toContain("treat with caution");
-    // 1–2 sentences, no numeric clutter
+    expect(summary.toLowerCase()).toContain("do not hold exposure");
+    // No numeric clutter, no hedging words
     expect(summary).not.toMatch(/\/100/);
+    expect(summary.toLowerCase()).not.toMatch(/\bmight\b|\bcould\b|\bpossibly\b/);
     expect(summary.length).toBeLessThan(300);
-    // Exactly 1 or 2 sentences
     const sentences = summary.split(/\.\s+/).filter(Boolean);
     expect(sentences.length).toBeLessThanOrEqual(2);
   });
 
-  it("uses the same sentence structure across entity types, with the correct noun", () => {
+  it("produces decisive clean-state summaries with the correct noun", () => {
     const walletSummary = buildExecutiveSummary({
       entityLabel: "Whale 042",
       entityType: "wallet",
@@ -242,13 +243,11 @@ describe("normalize — buildExecutiveSummary", () => {
         },
       ],
     });
-    // Both promising → "{Noun} shows normal behavior with no critical risk signals detected."
-    expect(walletSummary).toBe(
-      "Wallet shows normal behavior with no critical risk signals detected.",
-    );
-    expect(nftSummary).toBe(
-      "Collection shows normal behavior with no critical risk signals detected.",
-    );
+    // Both clean → "No risk signals detected on this {noun}. …"
+    expect(walletSummary.toLowerCase()).toContain("no risk signals detected");
+    expect(walletSummary.toLowerCase()).toContain("wallet");
+    expect(nftSummary.toLowerCase()).toContain("no risk signals detected");
+    expect(nftSummary.toLowerCase()).toContain("collection");
   });
 
   it("distinguishes token from wallet and collection via the entity noun", () => {
@@ -261,12 +260,11 @@ describe("normalize — buildExecutiveSummary", () => {
       topFindings: [],
       scoreBreakdown: [],
     });
-    expect(tokenSummary).toBe(
-      "Token shows normal behavior with no critical risk signals detected.",
-    );
+    expect(tokenSummary.toLowerCase()).toContain("no risk signals detected");
+    expect(tokenSummary.toLowerCase()).toContain("token");
   });
 
-  it("uses 'mixed signals' wording for Neutral risk band", () => {
+  it("uses decisive wording for Neutral risk band", () => {
     const summary = buildExecutiveSummary({
       entityLabel: "Night Circuit Club",
       entityType: "nft_collection",
@@ -277,11 +275,12 @@ describe("normalize — buildExecutiveSummary", () => {
       scoreBreakdown: [],
     });
     expect(summary.toLowerCase()).toContain("mixed signals");
+    expect(summary.toLowerCase()).toContain("collection");
     expect(summary.toLowerCase()).toContain("wash-trade signature");
-    expect(summary.toLowerCase()).toContain("watch for changes");
+    expect(summary.toLowerCase()).toContain("maintain active monitoring");
   });
 
-  it("uses 'elevated-risk' wording for Elevated Risk band", () => {
+  it("uses 'elevated risk identified' wording for Elevated Risk band", () => {
     const summary = buildExecutiveSummary({
       entityLabel: "Fresh Wallet",
       entityType: "wallet",
@@ -291,9 +290,10 @@ describe("normalize — buildExecutiveSummary", () => {
       topFindings: [f({ title: "Mixer-linked funding detected", severity: "high" })],
       scoreBreakdown: [],
     });
-    expect(summary.toLowerCase()).toContain("elevated-risk wallet");
+    expect(summary.toLowerCase()).toContain("elevated risk identified");
+    expect(summary.toLowerCase()).toContain("wallet");
     expect(summary.toLowerCase()).toContain("mixer-linked funding");
-    expect(summary.toLowerCase()).toContain("monitor");
+    expect(summary.toLowerCase()).toContain("reduce exposure");
     // Filler word "detected" should be stripped from the driver phrase
     expect(summary.toLowerCase()).not.toContain("detected");
   });
@@ -308,10 +308,10 @@ describe("normalize — buildExecutiveSummary", () => {
       topFindings: [f({ title: "Thin liquidity", severity: "high" })],
       scoreBreakdown: [],
     });
-    expect(summary.toLowerCase()).toContain("preliminary");
-    expect(summary.toLowerCase()).toContain("re-run");
-    // Preliminary should not shout "high-risk" at the user.
-    expect(summary.toLowerCase()).not.toContain("high-risk");
+    expect(summary.toLowerCase()).toContain("preliminary assessment");
+    expect(summary.toLowerCase()).toContain("broader data");
+    // Preliminary is cautious — no alarm, no "high risk identified"
+    expect(summary.toLowerCase()).not.toContain("high risk identified");
   });
 
   it("handles the empty-driver edge case without crashing", () => {
@@ -324,9 +324,8 @@ describe("normalize — buildExecutiveSummary", () => {
       topFindings: [],
       scoreBreakdown: [],
     });
-    expect(summary).toBe(
-      "Wallet shows normal behavior with no critical risk signals detected.",
-    );
+    expect(summary.toLowerCase()).toContain("no risk signals detected");
+    expect(summary.toLowerCase()).toContain("wallet");
   });
 });
 
@@ -361,7 +360,7 @@ describe("normalize — buildWhyThisMatters", () => {
       ],
     });
     expect(text.toLowerCase()).toContain("token risk");
-    expect(text.toLowerCase()).toContain("dominant contributor");
+    expect(text.toLowerCase()).toContain("drives the profile");
   });
 
   it("appends a confidence warning when below 50", () => {
@@ -490,14 +489,18 @@ describe("normalize — normalizeInvestigation (integration)", () => {
     expect(report.alerts.length).toBeLessThanOrEqual(rawAlertCount);
   });
 
-  it("CommandBrain auto-applies normalization so investigate() returns the clean shape", () => {
+  it("CommandBrain auto-applies normalization so investigate() returns the decision-grade shape", () => {
     const inv = defaultCommandBrain.investigate({ identifier: "Fresh Wallet 01" });
-    // The clean exec summary format is applied — driver-led prose,
-    // no numeric clutter, uses entity noun not label.
+    // Decision-grade prose: noun present, driver present, no hedging,
+    // no numeric clutter, answers "what should I do?".
     expect(inv.executiveSummary.toLowerCase()).toContain("wallet");
     expect(inv.executiveSummary.toLowerCase()).toContain("mixer");
+    expect(inv.executiveSummary.toLowerCase()).toMatch(/reduce exposure|do not hold/);
     expect(inv.executiveSummary).not.toMatch(/\/100/);
     expect(inv.executiveSummary).not.toMatch(/confidence \d+%/);
+    expect(inv.executiveSummary.toLowerCase()).not.toMatch(
+      /\bmight\b|\bcould\b|\bpossibly\b|\bappears\b/,
+    );
   });
 
   it("normalization is idempotent — normalizing a normalized report is a no-op", () => {
@@ -553,10 +556,41 @@ describe("normalize — legacy IntelligenceReport output", () => {
     const inv = investigate({ identifier: "MoonPaw Inu" });
     const report = investigationToReport(inv);
     expect(report.executiveSummary.length).toBeLessThan(300);
-    expect(report.executiveSummary.toLowerCase()).toContain("high-risk token");
+    expect(report.executiveSummary.toLowerCase()).toContain("high risk identified");
+    expect(report.executiveSummary.toLowerCase()).toContain("token");
     expect(report.executiveSummary.toLowerCase()).toMatch(
       /mint authority|thin liquidity|honeypot/,
     );
+    // Decision-grade: directive present, no hedging
+    expect(report.executiveSummary.toLowerCase()).toContain(
+      "do not hold exposure",
+    );
+    expect(report.executiveSummary.toLowerCase()).not.toMatch(
+      /\bmight\b|\bcould\b|\bpossibly\b/,
+    );
+  });
+
+  it("every analysis output is free of hedging language", () => {
+    const cases = ["Whale 042", "Fresh Wallet 01", "MoonPaw Inu", "Luminar Genesis", "Night Circuit Club"];
+    for (const id of cases) {
+      const inv = investigate({ identifier: id });
+      const report = investigationToReport(inv);
+      // Summaries and why-this-matters are decision-grade
+      const corpus =
+        report.executiveSummary + " " + report.whyThisMatters;
+      expect(corpus.toLowerCase()).not.toMatch(
+        /\bmight be\b|\bmay be\b|\bcould be\b|\bpossibly\b|\bperhaps\b|\bworth attention\b/,
+      );
+      // And so is every agent summary surfaced to the UI
+      for (const ao of report.agentOutputs) {
+        expect(ao.summary.toLowerCase()).not.toMatch(
+          /\bappears\s+(consistent|healthy|operational)/,
+        );
+        expect(ao.summary.toLowerCase()).not.toMatch(
+          /\blooks\s+(substantive|consistent|clean)/,
+        );
+      }
+    }
   });
 
   it("legacy alerts carry rewritten (clean) titles", () => {
