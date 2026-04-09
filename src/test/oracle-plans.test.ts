@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   allowedFeatures,
+  attachPreview,
+  buildGatePreview,
   canAccessFeature,
   checkAnalysisQuota,
   consumeAnalysis,
@@ -19,9 +21,11 @@ import {
   remainingAnalyses,
   today,
   type FeatureKey,
+  type GatePreview,
   type PlanTier,
   type User,
 } from "@/lib/plans";
+import { defaultCommandBrain } from "@/lib/oracle/engine";
 
 // ---------- planResolver ----------
 
@@ -562,5 +566,96 @@ describe("plans — upgrade trigger matrix", () => {
     expect(effectiveUpgradeTarget("elite", "investigation")).toBeUndefined();
     expect(effectiveUpgradeTarget("pro", "investigation")).toBe("elite");
     expect(effectiveUpgradeTarget("free", "memory")).toBe("pro");
+  });
+});
+
+// ---------- preview engine ----------
+
+describe("plans — GatePreview + buildGatePreview", () => {
+  it("projects counts from a raw Investigation", () => {
+    const inv = defaultCommandBrain.investigate({ identifier: "MoonPaw Inu" });
+    const preview = buildGatePreview(inv);
+    expect(typeof preview.anomalies).toBe("number");
+    expect(typeof preview.clusters).toBe("number");
+    expect(typeof preview.signals).toBe("number");
+    expect(preview.anomalies).toBeGreaterThan(0);
+    expect(preview.clusters).toBeGreaterThanOrEqual(0);
+    expect(preview.signals).toBeGreaterThanOrEqual(0);
+  });
+
+  it("uses anomalies + patterns from a DeepReport when available", () => {
+    const fakeDeepReport = {
+      anomalies: [{}, {}, {}],
+      patterns: [{}, {}],
+      topFindings: [
+        { severity: "critical" },
+        { severity: "high" },
+        { severity: "high" },
+        { severity: "medium" },
+      ],
+    } as unknown as Parameters<typeof buildGatePreview>[0];
+    const preview = buildGatePreview(fakeDeepReport);
+    expect(preview.anomalies).toBe(3);
+    expect(preview.clusters).toBe(2);
+    expect(preview.signals).toBe(3);
+  });
+});
+
+describe("plans — gating with preview", () => {
+  const free: User = { id: "f", plan: "free" };
+
+  const fakePreview: GatePreview = { anomalies: 3, clusters: 2, signals: 7 };
+
+  it("attaches a preview to a denied feature_locked gate", () => {
+    const gate = gateMemory(free, { preview: fakePreview });
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("feature_locked");
+    expect(gate.preview).toEqual(fakePreview);
+  });
+
+  it("attaches a preview to an upgrade_opportunity gate for pro users", () => {
+    const pro: User = { id: "p", plan: "pro" };
+    const gate = gateInvestigation(pro, { preview: fakePreview });
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("upgrade_opportunity");
+    expect(gate.preview).toEqual(fakePreview);
+  });
+
+  it("does NOT attach a preview to an allowed gate", () => {
+    const pro: User = { id: "p", plan: "pro" };
+    const gate = gateMemory(pro, { preview: fakePreview });
+    expect(gate.allowed).toBe(true);
+    expect(gate.preview).toBeUndefined();
+  });
+
+  it("attaches a preview to a daily-cap denial", async () => {
+    const store = new InMemoryUsageStore();
+    const user: User = { id: "cap", plan: "free" };
+    for (let i = 0; i < 5; i++) await consumeAnalysis(user, store);
+    const denied = await consumeAnalysis(user, store, {
+      preview: fakePreview,
+    });
+    expect(denied.allowed).toBe(false);
+    expect(denied.reason).toBe("limit");
+    expect(denied.preview).toEqual(fakePreview);
+  });
+
+  it("preview is optional — omitting it leaves the gate unchanged", () => {
+    const gate = gateMemory(free);
+    expect(gate.allowed).toBe(false);
+    expect(gate.preview).toBeUndefined();
+  });
+
+  it("attachPreview is a no-op when preview is undefined", () => {
+    const base = { allowed: false as const, preview: undefined };
+    expect(attachPreview(base, undefined)).toBe(base);
+  });
+
+  it("attachPreview returns a new object without mutating the input", () => {
+    const base = { allowed: false as const };
+    const next = attachPreview(base, fakePreview);
+    expect(next).not.toBe(base);
+    expect(next.preview).toEqual(fakePreview);
+    expect("preview" in base).toBe(false);
   });
 });

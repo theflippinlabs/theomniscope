@@ -16,6 +16,7 @@
  *              message "You've reached your daily limit."
  */
 
+import { attachPreview } from "./preview";
 import { planResolver } from "./resolver";
 import {
   allowedGate,
@@ -23,8 +24,12 @@ import {
   deniedGateForLimit,
 } from "./upgrades";
 import { defaultUsageStore, nextResetAt, today } from "./usage-store";
-import type { GateResult, User } from "./types";
+import type { GatePreview, GateResult, User } from "./types";
 import type { UsageStore } from "./usage-store";
+
+export interface LimitOptions {
+  preview?: GatePreview;
+}
 
 function userKey(user?: User | null): string {
   return user?.id ?? "anonymous";
@@ -36,12 +41,16 @@ function userKey(user?: User | null): string {
 export async function checkAnalysisQuota(
   user: User | null | undefined,
   store: UsageStore = defaultUsageStore,
+  options: LimitOptions = {},
 ): Promise<GateResult> {
   const plan = planResolver(user ?? undefined);
   const feature = "analysis" as const;
 
   if (!plan.features.analysis.allowed) {
-    return deniedGateForFeature(plan.tier, feature);
+    return attachPreview(
+      deniedGateForFeature(plan.tier, feature),
+      options.preview,
+    );
   }
 
   const cap = plan.limits.dailyAnalysisCap;
@@ -54,10 +63,13 @@ export async function checkAnalysisQuota(
   const used = state?.analysisCount ?? 0;
 
   if (used >= cap) {
-    return deniedGateForLimit(plan.tier, feature, {
-      remaining: 0,
-      resetAt: nextResetAt(),
-    });
+    return attachPreview(
+      deniedGateForLimit(plan.tier, feature, {
+        remaining: 0,
+        resetAt: nextResetAt(),
+      }),
+      options.preview,
+    );
   }
 
   return allowedGate(plan.tier, feature, plan.features.analysis.level, {
@@ -80,12 +92,16 @@ export async function checkAnalysisQuota(
 export async function consumeAnalysis(
   user: User | null | undefined,
   store: UsageStore = defaultUsageStore,
+  options: LimitOptions = {},
 ): Promise<GateResult> {
   const plan = planResolver(user ?? undefined);
   const feature = "analysis" as const;
 
   if (!plan.features.analysis.allowed) {
-    return deniedGateForFeature(plan.tier, feature);
+    return attachPreview(
+      deniedGateForFeature(plan.tier, feature),
+      options.preview,
+    );
   }
 
   const cap = plan.limits.dailyAnalysisCap;
@@ -98,10 +114,13 @@ export async function consumeAnalysis(
   const used = existing?.analysisCount ?? 0;
 
   if (used >= cap) {
-    return deniedGateForLimit(plan.tier, feature, {
-      remaining: 0,
-      resetAt: nextResetAt(),
-    });
+    return attachPreview(
+      deniedGateForLimit(plan.tier, feature, {
+        remaining: 0,
+        resetAt: nextResetAt(),
+      }),
+      options.preview,
+    );
   }
 
   const next = await store.increment(userKey(user), date, 1);

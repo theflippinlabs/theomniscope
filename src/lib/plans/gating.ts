@@ -22,6 +22,7 @@
  */
 
 import { PLAN_CATALOG } from "./catalog";
+import { attachPreview } from "./preview";
 import { planResolver } from "./resolver";
 import {
   allowedGate,
@@ -32,11 +33,22 @@ import {
 import type {
   FeatureAccess,
   FeatureKey,
+  GatePreview,
   GateResult,
   Plan,
   PlanTier,
   User,
 } from "./types";
+
+/**
+ * Optional extras a caller can attach to a gate check — today, only
+ * a precomputed intelligence preview. Extending this interface is
+ * forward-compatible for future gate options (geo, quota override,
+ * etc.) without changing the positional signature.
+ */
+export interface GateOptions {
+  preview?: GatePreview;
+}
 
 export type PlanLike = Plan | PlanTier | User | null | undefined;
 
@@ -119,6 +131,7 @@ export function featureAccess(
 export function gateFeature(
   input: PlanLike,
   feature: FeatureKey,
+  options: GateOptions = {},
 ): GateResult {
   const { plan, user } = toPlan(input);
 
@@ -132,13 +145,16 @@ export function gateFeature(
       return allowedGate(plan.tier, feature, plan.features[feature]?.level);
     }
     if (override === false) {
-      return {
-        allowed: false,
-        reason: "feature_locked",
-        message: `${displayNameFor(feature)} is not available on your account.`,
-        plan: plan.tier,
-        feature,
-      };
+      return attachPreview(
+        {
+          allowed: false,
+          reason: "feature_locked",
+          message: `${displayNameFor(feature)} is not available on your account.`,
+          plan: plan.tier,
+          feature,
+        },
+        options.preview,
+      );
     }
   }
 
@@ -146,7 +162,7 @@ export function gateFeature(
     return allowedGate(plan.tier, feature, plan.features[feature]?.level);
   }
 
-  return deniedGateForFeature(plan.tier, feature);
+  return attachPreview(deniedGateForFeature(plan.tier, feature), options.preview);
 }
 
 function displayNameFor(feature: FeatureKey): string {
@@ -164,20 +180,32 @@ function displayNameFor(feature: FeatureKey): string {
 
 // ---------- per-feature convenience helpers ----------
 
-export function gateMemory(input: PlanLike): GateResult {
-  return gateFeature(input, "memory");
+export function gateMemory(
+  input: PlanLike,
+  options: GateOptions = {},
+): GateResult {
+  return gateFeature(input, "memory", options);
 }
 
-export function gateSignals(input: PlanLike): GateResult {
-  return gateFeature(input, "signals");
+export function gateSignals(
+  input: PlanLike,
+  options: GateOptions = {},
+): GateResult {
+  return gateFeature(input, "signals", options);
 }
 
-export function gateInvestigation(input: PlanLike): GateResult {
-  return gateFeature(input, "investigation");
+export function gateInvestigation(
+  input: PlanLike,
+  options: GateOptions = {},
+): GateResult {
+  return gateFeature(input, "investigation", options);
 }
 
-export function gateExport(input: PlanLike): GateResult {
-  return gateFeature(input, "export");
+export function gateExport(
+  input: PlanLike,
+  options: GateOptions = {},
+): GateResult {
+  return gateFeature(input, "export", options);
 }
 
 /**

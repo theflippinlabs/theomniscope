@@ -38,7 +38,10 @@ export {
   gateExport,
   allowedFeatures,
   type PlanLike,
+  type GateOptions,
 } from "./gating";
+
+export { buildGatePreview, attachPreview } from "./preview";
 
 export {
   findUpgradeTarget,

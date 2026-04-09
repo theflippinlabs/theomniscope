@@ -85,12 +85,26 @@ export type GateReason =
   | "upgrade_opportunity";
 
 /**
+ * Partial data shown to a gated user to motivate an upgrade.
+ *
+ * When a gate denies access, callers may attach a `GatePreview`
+ * showing the user how much intelligence they're missing — without
+ * revealing the full payload. The three counts are small, tangible,
+ * and designed to be rendered inline in upgrade cards.
+ */
+export interface GatePreview {
+  anomalies: number;
+  clusters: number;
+  signals: number;
+}
+
+/**
  * The result of a gate check. Every field is present on every
  * response so consumers never need to branch on optionality for the
  * core fields (`allowed`, `reason`, `message`, `plan`, `feature`).
  *
- * Upgrade-related and quota-related fields remain optional because
- * they do not apply to every decision path.
+ * Upgrade-related, quota-related, and preview fields remain optional
+ * because they do not apply to every decision path.
  */
 export interface GateResult {
   allowed: boolean;
@@ -113,6 +127,13 @@ export interface GateResult {
   remaining?: number;
   /** When the quota resets (ISO timestamp, UTC midnight). */
   resetAt?: string;
+  /**
+   * Partial intelligence preview. Populated on denied gates when
+   * the caller supplies one via the gate options so the UI can
+   * render a compelling upsell ("3 anomalies, 2 clusters,
+   * 7 signals behind this wall"). Never populated on allowed gates.
+   */
+  preview?: GatePreview;
 }
 
 export interface UsageState {
