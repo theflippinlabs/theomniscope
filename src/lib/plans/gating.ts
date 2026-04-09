@@ -2,16 +2,33 @@
  * Feature gating — pure, synchronous access checks.
  *
  *   canAccessFeature(plan, feature)    → boolean
- *   featureAccess(plan, feature)       → FeatureAccess (with level + reason)
- *   gateFeature(user, feature)         → GateResult (sync, no quota)
+ *   featureAccess(plan, feature)       → FeatureAccess (catalog-level)
+ *   gateFeature(user, feature)         → GateResult with upgrade trigger
  *
  * Daily-cap enforcement for the `analysis` feature lives in
  * `limits.ts` because it requires a usage store. Everything in this
  * file is synchronous and storage-free.
+ *
+ * GateResult framing
+ *
+ *   "ok"                   — access granted (level + optional quota)
+ *   "feature_locked"       — free user hits a locked feature (firm
+ *                            restriction, upgradeTarget points at the
+ *                            lowest tier that unlocks it)
+ *   "upgrade_opportunity"  — Pro user hits an Elite-only feature
+ *                            (aspirational framing — they're already
+ *                            paying, so it's offered as an upsell)
+ *   "limit"                — usage cap reached (emitted from limits.ts)
  */
 
 import { PLAN_CATALOG } from "./catalog";
 import { planResolver } from "./resolver";
+import {
+  allowedGate,
+  deniedGateForFeature,
+  effectiveUpgradeTarget,
+  findUpgradeTarget,
+} from "./upgrades";
 import type {
   FeatureAccess,
   FeatureKey,
@@ -25,8 +42,6 @@ export type PlanLike = Plan | PlanTier | User | null | undefined;
 
 /**
  * Resolve any plan-like input into a concrete Plan object.
- * Factored out so `canAccessFeature` and `gateFeature` share one
- * coercion path.
  */
 function toPlan(input: PlanLike): { plan: Plan; user?: User } {
   if (input && typeof input === "object" && "tier" in input) {
@@ -40,10 +55,7 @@ function toPlan(input: PlanLike): { plan: Plan; user?: User } {
 
 /**
  * Strict boolean check — does this plan (or user, or tier) have
- * access to the given feature?
- *
- * Per-user overrides are respected: `{ overrides: { memory: true } }`
- * grants access to `memory` even on Free.
+ * access to the given feature? Honors per-user overrides.
  */
 export function canAccessFeature(
   input: PlanLike,
@@ -58,9 +70,12 @@ export function canAccessFeature(
 }
 
 /**
- * Full access descriptor — returns the plan's FeatureAccess entry
- * (allowed, level, reason). Useful for branching on feature level
- * (e.g. `basic` vs `advanced` signals).
+ * Catalog-level access descriptor — returns the raw `FeatureAccess`
+ * from the plan definition. Useful for callers that want to branch
+ * on feature level (e.g. `basic` vs `advanced` signals).
+ *
+ * This is distinct from `gateFeature`, which produces the upgrade-
+ * framed `GateResult` used for display.
  */
 export function featureAccess(
   input: PlanLike,
@@ -84,32 +99,67 @@ export function featureAccess(
 }
 
 /**
- * Gate check returning a full GateResult. Synchronous — does NOT
- * enforce daily caps (use `checkAnalysisQuota` from limits.ts for
- * that). Use this for memory / signals / investigation / export.
+ * Produce a decision-grade GateResult with upgrade framing.
+ *
+ * Behavior by tier:
+ *   - Elite (or Pro for any Pro feature): { allowed: true, reason: "ok" }
+ *   - Pro trying an Elite-only feature:    { reason: "upgrade_opportunity",
+ *                                            upgradeTarget: "elite",
+ *                                            message: "Unlock … with Elite." }
+ *   - Free trying a locked feature:        { reason: "feature_locked",
+ *                                            upgradeTarget: target,
+ *                                            message: "X is a … feature." }
+ *   - Admin override deny on Elite:        { reason: "feature_locked",
+ *                                            upgradeTarget: undefined }
+ *
+ * This function does NOT check the daily analysis cap — that lives
+ * in `consumeAnalysis` / `checkAnalysisQuota` so only one code path
+ * owns usage mutation.
  */
 export function gateFeature(
   input: PlanLike,
   feature: FeatureKey,
 ): GateResult {
-  const { plan } = toPlan(input);
-  const access = featureAccess(input, feature);
-  if (access.allowed) {
-    return {
-      allowed: true,
-      plan: plan.tier,
-      feature,
-      level: access.level,
-    };
+  const { plan, user } = toPlan(input);
+
+  // Honor user-level overrides first. An override that GRANTS
+  // access is always "ok"; an override that DENIES access always
+  // lands on feature_locked with no upgrade target (because there
+  // is no tier that would flip the override).
+  if (user?.overrides && feature in user.overrides) {
+    const override = user.overrides[feature];
+    if (override === true) {
+      return allowedGate(plan.tier, feature, plan.features[feature]?.level);
+    }
+    if (override === false) {
+      return {
+        allowed: false,
+        reason: "feature_locked",
+        message: `${displayNameFor(feature)} is not available on your account.`,
+        plan: plan.tier,
+        feature,
+      };
+    }
   }
-  return {
-    allowed: false,
-    plan: plan.tier,
-    feature,
-    reason:
-      access.reason ??
-      `${feature} is not available on the ${plan.name} plan.`,
+
+  if (plan.features[feature]?.allowed) {
+    return allowedGate(plan.tier, feature, plan.features[feature]?.level);
+  }
+
+  return deniedGateForFeature(plan.tier, feature);
+}
+
+function displayNameFor(feature: FeatureKey): string {
+  // Small duplicate of the display map in upgrades.ts, kept here to
+  // avoid a circular import and to isolate override-denial messaging.
+  const names: Record<FeatureKey, string> = {
+    analysis: "Analysis",
+    memory: "Memory",
+    signals: "Signal monitoring",
+    investigation: "Deep investigation",
+    export: "Report export",
   };
+  return names[feature];
 }
 
 // ---------- per-feature convenience helpers ----------
@@ -132,7 +182,8 @@ export function gateExport(input: PlanLike): GateResult {
 
 /**
  * Filter a list of feature keys to only those the plan can access.
- * Useful for the UI layer to decide which buttons to render.
+ * Useful for callers that need to decide which UI surfaces or API
+ * endpoints to expose.
  */
 export function allowedFeatures(input: PlanLike): FeatureKey[] {
   const all: FeatureKey[] = [
@@ -145,8 +196,6 @@ export function allowedFeatures(input: PlanLike): FeatureKey[] {
   return all.filter((f) => canAccessFeature(input, f));
 }
 
-/**
- * Re-export the catalog so callers can introspect all tiers (e.g.
- * for a pricing page or admin view).
- */
-export { PLAN_CATALOG };
+// Re-export upgrade helpers so callers can introspect without
+// importing from two places.
+export { findUpgradeTarget, effectiveUpgradeTarget, PLAN_CATALOG };

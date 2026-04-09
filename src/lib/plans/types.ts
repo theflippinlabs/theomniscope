@@ -66,17 +66,49 @@ export interface User {
 }
 
 /**
- * The result of a gate check. Always carries the resolved tier and
- * feature so upstream logic can log, branch, or reject explicitly.
+ * The reason a gate resolved the way it did. Used by the UI layer
+ * (when we eventually wire it) to pick the right framing:
+ *
+ *   "ok"                   — access granted, no action needed
+ *   "limit"                — denied because a usage cap was reached
+ *                            (e.g. free daily analysis cap)
+ *   "feature_locked"       — denied because the feature is not in
+ *                            the user's tier. Firm, restrictive framing.
+ *   "upgrade_opportunity"  — denied aspirationally — a paid user
+ *                            (Pro) trying to access an Elite feature.
+ *                            Aspirational framing rather than blocking.
+ */
+export type GateReason =
+  | "ok"
+  | "limit"
+  | "feature_locked"
+  | "upgrade_opportunity";
+
+/**
+ * The result of a gate check. Every field is present on every
+ * response so consumers never need to branch on optionality for the
+ * core fields (`allowed`, `reason`, `message`, `plan`, `feature`).
+ *
+ * Upgrade-related and quota-related fields remain optional because
+ * they do not apply to every decision path.
  */
 export interface GateResult {
   allowed: boolean;
+  reason: GateReason;
+  /**
+   * Human-readable message suitable for direct display. Always
+   * present — an empty string when `allowed` and no narration is
+   * needed, a decisive sentence otherwise.
+   */
+  message: string;
+  /** The tier that unlocks this feature, if any. */
+  upgradeTarget?: PlanTier;
+  /** The user's current plan tier. */
   plan: PlanTier;
+  /** The feature the caller asked about. */
   feature: FeatureKey;
-  /** Feature level granted (when allowed). */
+  /** Feature level granted when allowed. */
   level?: FeatureLevel;
-  /** Human-readable denial reason when `allowed` is false. */
-  reason?: string;
   /** Remaining daily quota for features with a cap. */
   remaining?: number;
   /** When the quota resets (ISO timestamp, UTC midnight). */

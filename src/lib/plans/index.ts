@@ -41,6 +41,16 @@ export {
 } from "./gating";
 
 export {
+  findUpgradeTarget,
+  effectiveUpgradeTarget,
+  allowedGate,
+  deniedGateForFeature,
+  deniedGateForLimit,
+  MESSAGE_TEMPLATES,
+  TIER_RANK,
+} from "./upgrades";
+
+export {
   InMemoryUsageStore,
   LocalStorageUsageStore,
   defaultUsageStore,

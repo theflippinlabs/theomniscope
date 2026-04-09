@@ -8,12 +8,20 @@
  *   consumeAnalysis(user, store)             — check + record + return gate
  *   remainingAnalyses(user, store)           — quick "how many left?"
  *
- * The usage store parameter is optional — if omitted, the default
- * LocalStorageUsageStore is used. Tests should inject an
- * InMemoryUsageStore to keep assertions isolated.
+ * All three functions return `GateResult` objects shaped by the
+ * upgrade trigger logic in `upgrades.ts`:
+ *
+ *   allowed  → reason "ok", level set
+ *   denied   → reason "limit", upgradeTarget "pro",
+ *              message "You've reached your daily limit."
  */
 
 import { planResolver } from "./resolver";
+import {
+  allowedGate,
+  deniedGateForFeature,
+  deniedGateForLimit,
+} from "./upgrades";
 import { defaultUsageStore, nextResetAt, today } from "./usage-store";
 import type { GateResult, User } from "./types";
 import type { UsageStore } from "./usage-store";
@@ -23,9 +31,7 @@ function userKey(user?: User | null): string {
 }
 
 /**
- * Read-only quota check. Does NOT consume a slot. Use this when the
- * caller only wants to know "can I analyze right now?" without
- * incrementing the counter.
+ * Read-only quota check. Does NOT consume a slot.
  */
 export async function checkAnalysisQuota(
   user: User | null | undefined,
@@ -35,46 +41,29 @@ export async function checkAnalysisQuota(
   const feature = "analysis" as const;
 
   if (!plan.features.analysis.allowed) {
-    return {
-      allowed: false,
-      plan: plan.tier,
-      feature,
-      reason: plan.features.analysis.reason ?? "Analysis is not available.",
-    };
+    return deniedGateForFeature(plan.tier, feature);
   }
 
   const cap = plan.limits.dailyAnalysisCap;
   if (!Number.isFinite(cap)) {
-    return {
-      allowed: true,
-      plan: plan.tier,
-      feature,
-      level: plan.features.analysis.level,
-    };
+    return allowedGate(plan.tier, feature, plan.features.analysis.level);
   }
 
   const date = today();
   const state = await store.get(userKey(user), date);
   const used = state?.analysisCount ?? 0;
+
   if (used >= cap) {
-    return {
-      allowed: false,
-      plan: plan.tier,
-      feature,
-      reason: `Daily analysis cap reached (${cap}/day). Upgrade to Pro for unlimited analyses.`,
+    return deniedGateForLimit(plan.tier, feature, {
       remaining: 0,
       resetAt: nextResetAt(),
-    };
+    });
   }
 
-  return {
-    allowed: true,
-    plan: plan.tier,
-    feature,
-    level: plan.features.analysis.level,
+  return allowedGate(plan.tier, feature, plan.features.analysis.level, {
     remaining: cap - used,
     resetAt: nextResetAt(),
-  };
+  });
 }
 
 /**
@@ -85,7 +74,7 @@ export async function checkAnalysisQuota(
  * Example:
  *
  *     const gate = await consumeAnalysis(user);
- *     if (!gate.allowed) return gate;       // tell the UI layer
+ *     if (!gate.allowed) return gate;       // pass to UI / API response
  *     const report = brain.investigate(req); // run the real thing
  */
 export async function consumeAnalysis(
@@ -96,47 +85,30 @@ export async function consumeAnalysis(
   const feature = "analysis" as const;
 
   if (!plan.features.analysis.allowed) {
-    return {
-      allowed: false,
-      plan: plan.tier,
-      feature,
-      reason: plan.features.analysis.reason ?? "Analysis is not available.",
-    };
+    return deniedGateForFeature(plan.tier, feature);
   }
 
   const cap = plan.limits.dailyAnalysisCap;
   if (!Number.isFinite(cap)) {
-    return {
-      allowed: true,
-      plan: plan.tier,
-      feature,
-      level: plan.features.analysis.level,
-    };
+    return allowedGate(plan.tier, feature, plan.features.analysis.level);
   }
 
   const date = today();
   const existing = await store.get(userKey(user), date);
   const used = existing?.analysisCount ?? 0;
+
   if (used >= cap) {
-    return {
-      allowed: false,
-      plan: plan.tier,
-      feature,
-      reason: `Daily analysis cap reached (${cap}/day). Upgrade to Pro for unlimited analyses.`,
+    return deniedGateForLimit(plan.tier, feature, {
       remaining: 0,
       resetAt: nextResetAt(),
-    };
+    });
   }
 
   const next = await store.increment(userKey(user), date, 1);
-  return {
-    allowed: true,
-    plan: plan.tier,
-    feature,
-    level: plan.features.analysis.level,
+  return allowedGate(plan.tier, feature, plan.features.analysis.level, {
     remaining: cap - next.analysisCount,
     resetAt: nextResetAt(),
-  };
+  });
 }
 
 /**

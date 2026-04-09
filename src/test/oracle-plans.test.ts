@@ -4,7 +4,9 @@ import {
   canAccessFeature,
   checkAnalysisQuota,
   consumeAnalysis,
+  effectiveUpgradeTarget,
   featureAccess,
+  findUpgradeTarget,
   gateExport,
   gateFeature,
   gateInvestigation,
@@ -155,11 +157,14 @@ describe("plans — gateFeature", () => {
     expect(gate.feature).toBe("memory");
   });
 
-  it("returns a reason on denial", () => {
+  it("returns an upgrade_opportunity reason + message for a pro user hitting investigation", () => {
     const gate = gateFeature({ id: "u", plan: "pro" }, "investigation");
     expect(gate.allowed).toBe(false);
-    expect(gate.reason).toBeTruthy();
-    expect(gate.reason!.toLowerCase()).toContain("elite");
+    expect(gate.reason).toBe("upgrade_opportunity");
+    expect(gate.upgradeTarget).toBe("elite");
+    expect(gate.message).toBeTruthy();
+    expect(gate.message.toLowerCase()).toContain("elite");
+    expect(gate.message.toLowerCase()).toContain("unlock");
   });
 
   it("convenience helpers match gateFeature output", () => {
@@ -233,15 +238,16 @@ describe("plans — analysis daily cap", () => {
     expect(c.remaining).toBe(2);
   });
 
-  it("consumeAnalysis returns a denial once the cap is exhausted", async () => {
+  it("consumeAnalysis returns a limit-reason denial once the cap is exhausted", async () => {
     for (let i = 0; i < 5; i++) {
       await consumeAnalysis(freeUser, store);
     }
     const denied = await consumeAnalysis(freeUser, store);
     expect(denied.allowed).toBe(false);
     expect(denied.remaining).toBe(0);
-    expect(denied.reason).toBeTruthy();
-    expect(denied.reason!.toLowerCase()).toContain("daily analysis cap");
+    expect(denied.reason).toBe("limit");
+    expect(denied.upgradeTarget).toBe("pro");
+    expect(denied.message).toBe("You've reached your daily limit.");
   });
 
   it("pro and elite plans report unlimited remaining", async () => {
@@ -380,5 +386,181 @@ describe("plans — integration with existing pipeline", () => {
       expect(g.allowed).toBe(true);
       expect(g.level).toBe("advanced");
     }
+  });
+});
+
+// ---------- upgrade trigger matrix ----------
+
+describe("plans — upgrade trigger matrix", () => {
+  const free: User = { id: "f", plan: "free" };
+  const pro: User = { id: "p", plan: "pro" };
+  const elite: User = { id: "e", plan: "elite" };
+
+  // FREE → PRO upgrade opportunities (feature_locked framing)
+
+  it("free user hitting memory is feature_locked with upgradeTarget=pro", () => {
+    const gate = gateMemory(free);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("feature_locked");
+    expect(gate.upgradeTarget).toBe("pro");
+    expect(gate.message).toBe("Memory is a Pro feature.");
+    expect(gate.plan).toBe("free");
+    expect(gate.feature).toBe("memory");
+  });
+
+  it("free user hitting signals is feature_locked with upgradeTarget=pro", () => {
+    const gate = gateSignals(free);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("feature_locked");
+    expect(gate.upgradeTarget).toBe("pro");
+    expect(gate.message).toBe("Signal monitoring is a Pro feature.");
+  });
+
+  it("free user hitting export is feature_locked with upgradeTarget=pro", () => {
+    const gate = gateExport(free);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("feature_locked");
+    expect(gate.upgradeTarget).toBe("pro");
+    expect(gate.message).toBe("Report export is a Pro feature.");
+  });
+
+  // FREE → ELITE upgrade (skip Pro entirely)
+
+  it("free user hitting investigation is feature_locked with upgradeTarget=elite", () => {
+    const gate = gateInvestigation(free);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("feature_locked");
+    expect(gate.upgradeTarget).toBe("elite");
+    expect(gate.message).toBe("Deep investigation is an Elite feature.");
+  });
+
+  // PRO → ELITE upgrade opportunity (aspirational framing)
+
+  it("pro user hitting investigation is upgrade_opportunity (not feature_locked)", () => {
+    const gate = gateInvestigation(pro);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("upgrade_opportunity");
+    expect(gate.upgradeTarget).toBe("elite");
+    expect(gate.message).toBe("Unlock deep investigation with Elite.");
+  });
+
+  it("pro user has aspirational framing for investigation but firm access everywhere else", () => {
+    // Allowed features all carry reason="ok" and empty message
+    const memory = gateMemory(pro);
+    expect(memory.allowed).toBe(true);
+    expect(memory.reason).toBe("ok");
+    expect(memory.message).toBe("");
+
+    const signals = gateSignals(pro);
+    expect(signals.allowed).toBe(true);
+    expect(signals.reason).toBe("ok");
+
+    // Investigation is the single locked-on-pro feature
+    const inv = gateInvestigation(pro);
+    expect(inv.reason).toBe("upgrade_opportunity");
+  });
+
+  // ELITE users always ok
+
+  it("elite user always gets reason=ok for every feature", () => {
+    const features: FeatureKey[] = [
+      "analysis",
+      "memory",
+      "signals",
+      "investigation",
+      "export",
+    ];
+    for (const f of features) {
+      const gate = gateFeature(elite, f);
+      expect(gate.allowed).toBe(true);
+      expect(gate.reason).toBe("ok");
+      expect(gate.message).toBe("");
+      expect(gate.upgradeTarget).toBeUndefined();
+    }
+  });
+
+  // Daily cap denial — limit reason
+
+  it("free user hitting daily cap gets reason=limit and upgradeTarget=pro", async () => {
+    const store = new InMemoryUsageStore();
+    const user: User = { id: "cap-test", plan: "free" };
+    for (let i = 0; i < 5; i++) await consumeAnalysis(user, store);
+
+    const denied = await consumeAnalysis(user, store);
+    expect(denied.allowed).toBe(false);
+    expect(denied.reason).toBe("limit");
+    expect(denied.upgradeTarget).toBe("pro");
+    expect(denied.message).toBe("You've reached your daily limit.");
+    expect(denied.remaining).toBe(0);
+    expect(denied.resetAt).toBeTruthy();
+  });
+
+  it("free user within cap gets reason=ok with remaining count", async () => {
+    const store = new InMemoryUsageStore();
+    const user: User = { id: "within", plan: "free" };
+    const gate = await consumeAnalysis(user, store);
+    expect(gate.allowed).toBe(true);
+    expect(gate.reason).toBe("ok");
+    expect(gate.message).toBe("");
+    expect(gate.remaining).toBe(4);
+    expect(gate.upgradeTarget).toBeUndefined();
+  });
+
+  // checkAnalysisQuota (read-only) honors the same framing
+
+  it("checkAnalysisQuota returns limit framing when exhausted", async () => {
+    const store = new InMemoryUsageStore();
+    const user: User = { id: "check-exhaust", plan: "free" };
+    for (let i = 0; i < 5; i++) await consumeAnalysis(user, store);
+    const gate = await checkAnalysisQuota(user, store);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("limit");
+    expect(gate.upgradeTarget).toBe("pro");
+    expect(gate.message).toBe("You've reached your daily limit.");
+  });
+
+  // Override-deny on Elite falls back to a plain feature_locked with
+  // no upgrade target (there is no higher tier to offer).
+
+  it("elite user with an override-deny gets feature_locked without upgradeTarget", () => {
+    const user: User = {
+      id: "admin-lock",
+      plan: "elite",
+      overrides: { investigation: false },
+    };
+    const gate = gateInvestigation(user);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toBe("feature_locked");
+    expect(gate.upgradeTarget).toBeUndefined();
+    expect(gate.message.toLowerCase()).toContain("not available");
+  });
+
+  it("override-grant on free unlocks a feature and returns reason=ok", () => {
+    const user: User = {
+      id: "trial",
+      plan: "free",
+      overrides: { investigation: true },
+    };
+    const gate = gateInvestigation(user);
+    expect(gate.allowed).toBe(true);
+    expect(gate.reason).toBe("ok");
+    expect(gate.message).toBe("");
+  });
+
+  // Upgrade resolution helpers
+
+  it("findUpgradeTarget returns the lowest unlocking tier", () => {
+    expect(findUpgradeTarget("memory")).toBe("pro");
+    expect(findUpgradeTarget("signals")).toBe("pro");
+    expect(findUpgradeTarget("export")).toBe("pro");
+    expect(findUpgradeTarget("investigation")).toBe("elite");
+    expect(findUpgradeTarget("analysis")).toBe("pro");
+  });
+
+  it("effectiveUpgradeTarget returns undefined when the user is already at a high-enough tier", () => {
+    expect(effectiveUpgradeTarget("pro", "memory")).toBeUndefined();
+    expect(effectiveUpgradeTarget("elite", "investigation")).toBeUndefined();
+    expect(effectiveUpgradeTarget("pro", "investigation")).toBe("elite");
+    expect(effectiveUpgradeTarget("free", "memory")).toBe("pro");
   });
 });
