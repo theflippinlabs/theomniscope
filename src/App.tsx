@@ -15,6 +15,7 @@ import OracleSecurity from "@/pages/oracle/OracleSecurity";
 import OracleTransparency from "@/pages/oracle/OracleTransparency";
 import OracleLegal from "@/pages/oracle/OracleLegal";
 import Login from "@/pages/auth/Login";
+import CommandCenter from "@/pages/CommandCenter";
 
 // Oracle Sentinel — command center surface
 import { OracleAppShell } from "@/components/oracle/OracleAppShell";
@@ -48,6 +49,20 @@ function AppContent() {
         <Route path="/transparency" element={<OracleTransparency />} />
         <Route path="/legal" element={<OracleLegal />} />
         <Route path="/login" element={<Login />} />
+
+        {/* Dashboard surface — top-level /dashboard route wrapped
+            in the shared OracleAppShell, hosting the orphaned
+            CommandCenter widget grid. */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <OracleAppShell />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<CommandCenter />} />
+        </Route>
 
         {/* Oracle Sentinel command surface — requires a Supabase session */}
         <Route

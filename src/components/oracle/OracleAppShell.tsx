@@ -33,6 +33,11 @@ const NAV_SECTIONS: {
         exact: true,
       },
       {
+        to: "/dashboard",
+        label: "Dashboard",
+        icon: <LayoutDashboard className="h-4 w-4" />,
+      },
+      {
         to: "/app/wallet",
         label: "Wallet Analyzer",
         icon: <Wallet className="h-4 w-4" />,
@@ -210,9 +215,9 @@ export function OracleAppShell() {
           <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-white/[0.06] bg-[#05060a]/90 py-2 backdrop-blur-xl lg:hidden">
             {[
               { to: "/app/command", icon: <LayoutDashboard className="h-4 w-4" />, label: "Center" },
+              { to: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard" },
               { to: "/app/wallet", icon: <Wallet className="h-4 w-4" />, label: "Wallet" },
               { to: "/app/token", icon: <Coins className="h-4 w-4" />, label: "Token" },
-              { to: "/app/nft", icon: <ImageIcon className="h-4 w-4" />, label: "NFT" },
               { to: "/app/alerts", icon: <AlertTriangle className="h-4 w-4" />, label: "Alerts" },
             ].map((i) => (
               <NavLink
@@ -240,6 +245,7 @@ function Breadcrumbs({ pathname }: { pathname: string }) {
   const LABELS: Record<string, string> = {
     app: "Oracle",
     command: "Command Center",
+    dashboard: "Dashboard",
     wallet: "Wallet Analyzer",
     token: "Token Analyzer",
     nft: "NFT Monitoring",

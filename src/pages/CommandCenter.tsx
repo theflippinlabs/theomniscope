@@ -15,20 +15,20 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import {
-  Bell,
   Wallet,
   BarChart3,
   Zap,
   Activity,
   LineChart,
-  Settings2,
   Brain,
   Eye,
+  Bell,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMarketData } from "@/hooks/useMarketData";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { DashboardControls } from "@/components/dashboard/DashboardControls";
 import {
   DashboardWidget,
   type WidgetSize,
@@ -228,29 +228,12 @@ export default function CommandCenter() {
             Oracle Intel
           </h1>
         </div>
-        <div className="flex items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative w-8 h-8"
-            onClick={() => navigate("/server-alerts")}
-          >
-            <Bell className="w-4 h-4" />
-            {unreadAlerts > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-danger text-[8px] font-bold flex items-center justify-center text-danger-foreground">
-                {unreadAlerts > 9 ? "9+" : unreadAlerts}
-              </span>
-            )}
-          </Button>
-          <Button
-            variant={isEditMode ? "default" : "ghost"}
-            size="icon"
-            className="w-8 h-8"
-            onClick={() => setIsEditMode(!isEditMode)}
-          >
-            <Settings2 className="w-4 h-4" />
-          </Button>
-        </div>
+        <DashboardControls
+          isEditMode={isEditMode}
+          onToggleEditMode={() => setIsEditMode((v) => !v)}
+          onOpenNotifications={() => navigate("/server-alerts")}
+          unreadAlerts={unreadAlerts}
+        />
       </motion.div>
 
       {/* Edit Mode Banner */}
