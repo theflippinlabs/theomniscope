@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ExternalLink, Image as ImageIcon, Palette, Users } from "lucide-react";
 import { EntitySearch } from "@/components/oracle/EntitySearch";
@@ -17,26 +17,61 @@ import {
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
 import { NFT_FIXTURES } from "@/lib/oracle/mock-data";
+import { prefetchEntity, readCachedNft } from "@/lib/providers";
+
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+
+function resolveInitial(q: string) {
+  const match =
+    NFT_FIXTURES.find(
+      (c) =>
+        c.name.toLowerCase() === q.toLowerCase() ||
+        c.slug.toLowerCase() === q.toLowerCase() ||
+        c.contract.toLowerCase() === q.toLowerCase(),
+    ) ?? NFT_FIXTURES[1];
+  const r = runAnalysis({
+    entityType: "nft",
+    nft: match,
+    identifier: match.contract,
+    label: match.name,
+  });
+  return { coll: match, report: r, isLiveData: false };
+}
 
 export default function OracleNFTMonitor() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
 
-  const { coll, report } = useMemo(() => {
-    const match =
-      NFT_FIXTURES.find(
-        (c) =>
-          c.name.toLowerCase() === q.toLowerCase() ||
-          c.slug.toLowerCase() === q.toLowerCase() ||
-          c.contract.toLowerCase() === q.toLowerCase(),
-      ) ?? NFT_FIXTURES[1];
-    const r = runAnalysis({
-      entityType: "nft",
-      nft: match,
-      identifier: match.contract,
-      label: match.name,
-    });
-    return { coll: match, report: r };
+  const [state, setState] = useState(() => resolveInitial(q));
+  const { coll, report } = state;
+
+  // Attempt a live Reservoir prefetch for real contract addresses;
+  // everything else resolves via the mock fixtures above.
+  useEffect(() => {
+    setState(resolveInitial(q));
+    if (!q || !ADDRESS_RE.test(q.trim())) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const pre = await prefetchEntity(q.trim());
+        if (cancelled || pre.kind === "unknown") return;
+        const live = readCachedNft(q.trim());
+        if (!live || cancelled) return;
+        const liveReport = runAnalysis({
+          entityType: "nft",
+          nft: live,
+          identifier: live.contract,
+          label: live.name,
+        });
+        setState({ coll: live, report: liveReport, isLiveData: true });
+      } catch (err) {
+        console.warn("[OracleNFTMonitor] prefetch failed, keeping fallback", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [q]);
 
   const floorSeries = coll.salesSeries.map((p) => p.floorEth);

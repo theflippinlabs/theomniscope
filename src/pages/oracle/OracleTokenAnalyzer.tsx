@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Droplets, ExternalLink, Lock, ShieldAlert, Users } from "lucide-react";
 import { EntitySearch } from "@/components/oracle/EntitySearch";
@@ -16,26 +16,62 @@ import {
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
 import { TOKEN_FIXTURES } from "@/lib/oracle/mock-data";
+import { prefetchEntity, readCachedToken } from "@/lib/providers";
+
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+
+function resolveInitial(q: string) {
+  const match =
+    TOKEN_FIXTURES.find(
+      (t) =>
+        t.symbol.toLowerCase() === q.toLowerCase() ||
+        t.name.toLowerCase() === q.toLowerCase() ||
+        t.address.toLowerCase() === q.toLowerCase(),
+    ) ?? TOKEN_FIXTURES[1];
+  const r = runAnalysis({
+    entityType: "token",
+    token: match,
+    identifier: match.address,
+    label: `${match.name} (${match.symbol})`,
+  });
+  return { token: match, report: r, isLiveData: false };
+}
 
 export default function OracleTokenAnalyzer() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
 
-  const { token, report } = useMemo(() => {
-    const match =
-      TOKEN_FIXTURES.find(
-        (t) =>
-          t.symbol.toLowerCase() === q.toLowerCase() ||
-          t.name.toLowerCase() === q.toLowerCase() ||
-          t.address.toLowerCase() === q.toLowerCase(),
-      ) ?? TOKEN_FIXTURES[1];
-    const r = runAnalysis({
-      entityType: "token",
-      token: match,
-      identifier: match.address,
-      label: `${match.name} (${match.symbol})`,
-    });
-    return { token: match, report: r };
+  const [state, setState] = useState(() => resolveInitial(q));
+  const { token, report } = state;
+
+  // If q looks like a real contract address, prefetch GoPlus +
+  // DexScreener, then re-run the analysis with the live data.
+  // On failure we quietly keep the mock fallback.
+  useEffect(() => {
+    setState(resolveInitial(q));
+    if (!q || !ADDRESS_RE.test(q.trim())) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const pre = await prefetchEntity(q.trim());
+        if (cancelled || pre.kind === "unknown") return;
+        const live = readCachedToken(q.trim());
+        if (!live || cancelled) return;
+        const liveReport = runAnalysis({
+          entityType: "token",
+          token: live,
+          identifier: live.address,
+          label: `${live.name} (${live.symbol})`,
+        });
+        setState({ token: live, report: liveReport, isLiveData: true });
+      } catch (err) {
+        console.warn("[OracleTokenAnalyzer] prefetch failed, keeping fallback", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [q]);
 
   const totalLiq = token.liquidityPools.reduce((a, p) => a + p.liquidityUsd, 0);

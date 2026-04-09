@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -23,25 +23,64 @@ import {
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
 import { WALLET_FIXTURES } from "@/lib/oracle/mock-data";
+import { prefetchEntity, readCachedWallet } from "@/lib/providers";
+
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+
+function resolveInitial(q: string | null) {
+  const match =
+    WALLET_FIXTURES.find(
+      (w) =>
+        (w.label ?? "").toLowerCase() === (q ?? "").toLowerCase() ||
+        w.address.toLowerCase() === (q ?? "").toLowerCase(),
+    ) ?? WALLET_FIXTURES[0];
+  const r = runAnalysis({
+    entityType: "wallet",
+    wallet: match,
+    identifier: match.address,
+    label: match.label ?? match.address,
+  });
+  return { wallet: match, report: r, isLiveData: false };
+}
 
 export default function OracleWalletAnalyzer() {
   const [params] = useSearchParams();
   const q = params.get("q");
 
-  const { wallet, report } = useMemo(() => {
-    const match =
-      WALLET_FIXTURES.find(
-        (w) =>
-          (w.label ?? "").toLowerCase() === (q ?? "").toLowerCase() ||
-          w.address.toLowerCase() === (q ?? "").toLowerCase(),
-      ) ?? WALLET_FIXTURES[0];
-    const r = runAnalysis({
-      entityType: "wallet",
-      wallet: match,
-      identifier: match.address,
-      label: match.label ?? match.address,
-    });
-    return { wallet: match, report: r };
+  // Initial sync render — identical to the previous useMemo path so
+  // the demo continues to work without any loading spinner.
+  const [state, setState] = useState(() => resolveInitial(q));
+  const { wallet, report } = state;
+
+  // When the query is a real 0x address, attempt a live prefetch and
+  // re-run the analysis with the cached data. Any failure (no API key,
+  // rate limit, network error) falls back to the mock snapshot above.
+  useEffect(() => {
+    setState(resolveInitial(q));
+    if (!q || !ADDRESS_RE.test(q.trim())) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const pre = await prefetchEntity(q.trim());
+        if (cancelled) return;
+        if (pre.kind === "unknown") return;
+        const live = readCachedWallet(q.trim());
+        if (!live || cancelled) return;
+        const liveReport = runAnalysis({
+          entityType: "wallet",
+          wallet: live,
+          identifier: live.address,
+          label: live.label ?? live.address,
+        });
+        setState({ wallet: live, report: liveReport, isLiveData: true });
+      } catch (err) {
+        console.warn("[OracleWalletAnalyzer] prefetch failed, keeping fallback", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [q]);
 
   return (

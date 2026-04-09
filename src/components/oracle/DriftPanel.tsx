@@ -10,6 +10,9 @@ import type { EntityDrift } from "@/lib/oracle/persistence";
 import type { Investigation } from "@/lib/oracle/engine/types";
 import { defaultCommandBrain } from "@/lib/oracle/engine/command-brain";
 import { useEntityDrift } from "@/hooks/useSnapshots";
+import { prefetchEntity } from "@/lib/providers";
+
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
 interface DriftPanelProps {
   entityIdentifier: string;
@@ -33,6 +36,17 @@ export function DriftPanel({
   const handleSnapshot = async () => {
     setRecording(true);
     try {
+      // When the identifier looks like a real on-chain address,
+      // warm the HTTP cache first so the re-run produces live data
+      // instead of mock fallback. Any prefetch failure is absorbed
+      // so the snapshot path still completes.
+      if (ADDRESS_RE.test(entityIdentifier)) {
+        try {
+          await prefetchEntity(entityIdentifier);
+        } catch (err) {
+          console.warn("[DriftPanel] prefetch failed, continuing with fallback", err);
+        }
+      }
       const inv =
         currentInvestigation ??
         defaultCommandBrain.investigate({ identifier: entityLabel });
