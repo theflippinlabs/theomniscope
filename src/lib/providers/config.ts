@@ -16,6 +16,18 @@
  */
 
 export interface ProviderConfig {
+  /**
+   * Preferred path — URL of the Supabase edge function / serverless
+   * proxy that holds the upstream API keys server-side. When set,
+   * the client NEVER sends Moralis / Reservoir keys over the wire.
+   */
+  oracleProxyUrl?: string;
+  /**
+   * Dev-only fallback. When `oracleProxyUrl` is NOT set and this
+   * key IS set, the client calls Moralis directly. This is fine for
+   * local development but MUST NOT be used in production — a
+   * VITE_ prefix means the key is bundled into the client JS.
+   */
   moralisApiKey?: string;
   reservoirApiKey?: string;
   /** Default chain used when a caller does not specify one. */
@@ -52,6 +64,8 @@ export function buildProviderConfig(
   overrides: Partial<ProviderConfig> = {},
 ): ProviderConfig {
   return {
+    oracleProxyUrl:
+      overrides.oracleProxyUrl ?? readEnv("VITE_ORACLE_PROXY_URL"),
     moralisApiKey: overrides.moralisApiKey ?? readEnv("VITE_MORALIS_API_KEY"),
     reservoirApiKey:
       overrides.reservoirApiKey ?? readEnv("VITE_RESERVOIR_API_KEY"),
@@ -65,9 +79,22 @@ export function buildProviderConfig(
   };
 }
 
-/** Whether the configured providers can meaningfully fetch live data. */
+/**
+ * Whether the configured providers can meaningfully fetch live data.
+ * Returns true when either the secure proxy is set (production) or a
+ * direct Moralis key is set (dev).
+ */
 export function hasLiveConfig(config: ProviderConfig): boolean {
-  return Boolean(config.moralisApiKey);
+  return Boolean(config.oracleProxyUrl) || Boolean(config.moralisApiKey);
+}
+
+/**
+ * Whether the current config is "production safe" — i.e. no raw API
+ * keys exposed to the client bundle. Returns true when a proxy URL
+ * is set (which is the only production-safe configuration).
+ */
+export function isProductionSafe(config: ProviderConfig): boolean {
+  return Boolean(config.oracleProxyUrl);
 }
 
 export const defaultProviderConfig = buildProviderConfig();

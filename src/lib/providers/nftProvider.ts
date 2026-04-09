@@ -26,6 +26,7 @@ import {
   type ProviderConfig,
   type SupportedChain,
 } from "./config";
+import { callOracleProxy } from "./proxy";
 import { safeFetchJson } from "./safe-fetch";
 
 // ---------- Reservoir shapes ----------
@@ -57,7 +58,27 @@ interface ReservoirCollectionsResponse {
 
 // ---------- fetcher ----------
 
-async function fetchReservoirCollection(
+/**
+ * Composite shape returned by both the secure proxy and the direct
+ * Reservoir path.
+ */
+interface RawNftData {
+  collection: ReservoirCollection;
+}
+
+async function fetchNftRawFromProxy(
+  contract: string,
+  chainKey: SupportedChain,
+  config: ProviderConfig,
+): Promise<ReservoirCollection | null> {
+  const raw = await callOracleProxy<RawNftData>(
+    { type: "nft", identifier: contract, chain: chainKey },
+    config,
+  );
+  return raw?.collection ?? null;
+}
+
+async function fetchReservoirCollectionDirect(
   contract: string,
   chainKey: SupportedChain,
   config: ProviderConfig,
@@ -76,6 +97,23 @@ async function fetchReservoirCollection(
     timeoutMs: config.requestTimeoutMs,
   });
   return resp?.collections?.[0] ?? null;
+}
+
+/**
+ * Resolve the raw Reservoir collection through the secure proxy if
+ * one is configured; otherwise call Reservoir directly. Both paths
+ * return null on any failure.
+ */
+async function fetchReservoirCollection(
+  contract: string,
+  chainKey: SupportedChain,
+  config: ProviderConfig,
+): Promise<ReservoirCollection | null> {
+  if (config.oracleProxyUrl) {
+    const proxied = await fetchNftRawFromProxy(contract, chainKey, config);
+    if (proxied) return proxied;
+  }
+  return fetchReservoirCollectionDirect(contract, chainKey, config);
 }
 
 // ---------- transform ----------

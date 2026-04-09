@@ -3,22 +3,48 @@ import {
   buildHybridProviderRegistry,
   buildProviderConfig,
   cacheKey,
+  callOracleProxy,
   classifyCounterparty,
   defaultProviderCache,
   defaultProviderConfig,
+  emptyNftCollectionProfile,
+  emptyTokenProfile,
+  emptyWalletProfile,
+  fetchLiveNftCollection,
   fetchLiveTokenProfile,
   fetchLiveWalletProfile,
+  hasLiveConfig,
   installHttpProviders,
+  isProductionSafe,
+  nftCompleteness,
   prefetchEntity,
   ProviderCache,
   safeFetchJson,
+  tokenCompleteness,
   transformAssets,
   transformCounterparties,
   transformLiquidityPools,
   transformPermissions,
   transformTransactions,
+  walletCompleteness,
+  type ProviderConfig,
 } from "@/lib/providers";
 import { defaultCommandBrain } from "@/lib/oracle/engine";
+
+// Hand-built provider config that bypasses env lookups. Use this in
+// any test that cares about specific config values — `buildProviderConfig`
+// reads VITE_* env vars as fallbacks, which can leak local .env state.
+function testConfig(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
+  return {
+    oracleProxyUrl: undefined,
+    moralisApiKey: undefined,
+    reservoirApiKey: undefined,
+    defaultChain: "eth",
+    requestTimeoutMs: 10_000,
+    cache: { walletTtlMs: 60, tokenTtlMs: 60, nftTtlMs: 60 },
+    ...overrides,
+  };
+}
 
 // ---------- cache ----------
 
@@ -312,21 +338,10 @@ describe("providers — fetchLiveWalletProfile", () => {
     defaultProviderCache.clear();
   });
 
-  it("returns null when no Moralis key is configured", async () => {
-    // Build the config manually so the test is independent of the
-    // developer's local .env.local (which may set VITE_MORALIS_API_KEY).
-    const config: Parameters<typeof fetchLiveWalletProfile>[1] extends {
-      config?: infer C;
-    }
-      ? C
-      : never = {
-      moralisApiKey: undefined,
-      reservoirApiKey: undefined,
-      defaultChain: "eth",
-      requestTimeoutMs: 10_000,
-      cache: { walletTtlMs: 60, tokenTtlMs: 60, nftTtlMs: 60 },
-    };
-    const profile = await fetchLiveWalletProfile("0xabc", { config });
+  it("returns null when no Moralis key or proxy URL is configured", async () => {
+    const profile = await fetchLiveWalletProfile("0xabc", {
+      config: testConfig(),
+    });
     expect(profile).toBeNull();
   });
 
@@ -358,7 +373,7 @@ describe("providers — fetchLiveWalletProfile", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const config = buildProviderConfig({ moralisApiKey: "test-key" });
+    const config = testConfig({ moralisApiKey: "test-key" });
     const profile = await fetchLiveWalletProfile(
       "0xwalletunderanalysis",
       { config, chain: "eth" },
@@ -376,8 +391,67 @@ describe("providers — fetchLiveWalletProfile", () => {
       "fetch",
       vi.fn().mockResolvedValue(new Response(JSON.stringify({}))),
     );
-    const config = buildProviderConfig({ moralisApiKey: "test-key" });
+    const config = testConfig({ moralisApiKey: "test-key" });
     const profile = await fetchLiveWalletProfile("0xempty", { config });
+    expect(profile).toBeNull();
+  });
+
+  it("routes through the oracle proxy when proxyUrl is configured", async () => {
+    // The proxy path is ONE POST to the edge function URL; it returns
+    // the same `{ balance, tokens, transactions, nftCount }` envelope
+    // the direct Moralis path produces — so the transform code stays
+    // identical between the two paths.
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      // The proxy is called via POST with a JSON body.
+      expect(init?.method).toBe("POST");
+      const body = JSON.parse(String(init?.body));
+      expect(body.type).toBe("wallet");
+      expect(body.identifier).toBe("0xproxywallet");
+      return new Response(
+        JSON.stringify({
+          data: {
+            balance: "3000000000000000000",
+            tokens: [],
+            transactions: [
+              {
+                hash: "0xzzz",
+                from_address: "0xproxywallet",
+                to_address: "0x28c6c06298d514db089934071355e5743bf21d60",
+                value: "500000000000000000",
+                block_timestamp: "2026-04-08T00:00:00Z",
+              },
+            ],
+            nftCount: 2,
+          },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const config = testConfig({
+      oracleProxyUrl: "https://example.invalid/oracle-fetch",
+    });
+    const profile = await fetchLiveWalletProfile("0xproxywallet", {
+      config,
+      chain: "eth",
+    });
+    expect(profile).toBeTruthy();
+    expect(profile!.nftCount).toBe(2);
+    expect(profile!.transactions).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // single proxy POST
+  });
+
+  it("returns null when the proxy POST fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response("proxy down", { status: 500 })),
+    );
+    const config = testConfig({
+      oracleProxyUrl: "https://example.invalid/oracle-fetch",
+    });
+    const profile = await fetchLiveWalletProfile("0xany", { config });
     expect(profile).toBeNull();
   });
 });
@@ -395,7 +469,9 @@ describe("providers — fetchLiveTokenProfile", () => {
       "fetch",
       vi.fn().mockResolvedValue(new Response("fail", { status: 500 })),
     );
-    const profile = await fetchLiveTokenProfile("0xtoken");
+    const profile = await fetchLiveTokenProfile("0xtoken", {
+      config: testConfig(),
+    });
     expect(profile).toBeNull();
   });
 
@@ -448,7 +524,10 @@ describe("providers — fetchLiveTokenProfile", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const profile = await fetchLiveTokenProfile(address, { chain: "eth" });
+    const profile = await fetchLiveTokenProfile(address, {
+      chain: "eth",
+      config: testConfig(),
+    });
     expect(profile).toBeTruthy();
     expect(profile!.name).toBe("Trap Token");
     expect(profile!.symbol).toBe("TRAP");
@@ -464,6 +543,289 @@ describe("providers — fetchLiveTokenProfile", () => {
     expect(
       profile!.permissions.some((p) => p.name === "mint()"),
     ).toBe(true);
+  });
+
+  it("routes through the oracle proxy when proxyUrl is configured", async () => {
+    const address = "0xproxytoken";
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      expect(init?.method).toBe("POST");
+      const body = JSON.parse(String(init?.body));
+      expect(body.type).toBe("token");
+      return new Response(
+        JSON.stringify({
+          data: {
+            security: {
+              token_name: "Proxied Token",
+              token_symbol: "PXT",
+              buy_tax: "0",
+              sell_tax: "0",
+              owner_address: "0x0000000000000000000000000000000000000000",
+            },
+            pairs: [
+              {
+                baseToken: { name: "Proxied Token", symbol: "PXT" },
+                priceUsd: "0.5",
+                marketCap: 5_000_000,
+                liquidity: { usd: 200_000 },
+                dexId: "uniswap",
+              },
+            ],
+          },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const profile = await fetchLiveTokenProfile(address, {
+      config: testConfig({
+        oracleProxyUrl: "https://example.invalid/oracle-fetch",
+      }),
+    });
+    expect(profile).toBeTruthy();
+    expect(profile!.name).toBe("Proxied Token");
+    expect(profile!.ownershipRenounced).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------- live NFT fetcher (mocked fetch) ----------
+
+describe("providers — fetchLiveNftCollection", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    defaultProviderCache.clear();
+  });
+
+  it("returns null when Reservoir returns no collections", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ collections: [] }))),
+    );
+    const profile = await fetchLiveNftCollection("0xcollection", {
+      config: testConfig(),
+    });
+    expect(profile).toBeNull();
+  });
+
+  it("routes through the oracle proxy when proxyUrl is configured", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      expect(init?.method).toBe("POST");
+      const body = JSON.parse(String(init?.body));
+      expect(body.type).toBe("nft");
+      return new Response(
+        JSON.stringify({
+          data: {
+            collection: {
+              id: "0xproxynft",
+              name: "Proxied Collection",
+              slug: "proxied",
+              tokenCount: "5000",
+              ownerCount: 1800,
+              onSaleCount: "200",
+              floorAsk: { price: { amount: { decimal: 0.5 } } },
+              volume: { "7day": 42 },
+              createdAt: "2026-01-01",
+              openseaVerificationStatus: "verified",
+            },
+          },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const profile = await fetchLiveNftCollection("0xproxynft", {
+      config: testConfig({
+        oracleProxyUrl: "https://example.invalid/oracle-fetch",
+      }),
+    });
+    expect(profile).toBeTruthy();
+    expect(profile!.name).toBe("Proxied Collection");
+    expect(profile!.totalSupply).toBe(5000);
+    expect(profile!.verified).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------- oracle proxy client ----------
+
+describe("providers — callOracleProxy", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns null when no proxy URL is configured", async () => {
+    const result = await callOracleProxy(
+      { type: "wallet", identifier: "0xabc" },
+      testConfig(),
+    );
+    expect(result).toBeNull();
+  });
+
+  it("returns the payload data field on success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ data: { hello: "world" } })),
+        ),
+    );
+    const result = await callOracleProxy<{ hello: string }>(
+      { type: "wallet", identifier: "0xabc" },
+      testConfig({ oracleProxyUrl: "https://example.invalid/oracle-fetch" }),
+    );
+    expect(result).toEqual({ hello: "world" });
+  });
+
+  it("returns null when the server returns { data: null }", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ data: null }))),
+    );
+    const result = await callOracleProxy(
+      { type: "wallet", identifier: "0xabc" },
+      testConfig({ oracleProxyUrl: "https://example.invalid/oracle-fetch" }),
+    );
+    expect(result).toBeNull();
+  });
+
+  it("returns null on a network failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("network down")),
+    );
+    const result = await callOracleProxy(
+      { type: "wallet", identifier: "0xabc" },
+      testConfig({ oracleProxyUrl: "https://example.invalid/oracle-fetch" }),
+    );
+    expect(result).toBeNull();
+  });
+});
+
+// ---------- skeletons ----------
+
+describe("providers — empty profile skeletons", () => {
+  it("emptyWalletProfile builds a zero-state wallet at the given address", () => {
+    const empty = emptyWalletProfile("0xabc");
+    expect(empty.address).toBe("0xabc");
+    expect(empty.totalValueUsd).toBe(0);
+    expect(empty.assets).toEqual([]);
+    expect(empty.transactions).toEqual([]);
+    expect(empty.counterparties).toEqual([]);
+  });
+
+  it("emptyTokenProfile builds a zero-state token with 'Unknown Token' name", () => {
+    const empty = emptyTokenProfile("0xtok");
+    expect(empty.address).toBe("0xtok");
+    expect(empty.name).toBe("Unknown Token");
+    expect(empty.symbol).toBe("???");
+    expect(empty.liquidityPools).toEqual([]);
+    expect(empty.permissions).toEqual([]);
+  });
+
+  it("emptyNftCollectionProfile builds a zero-state collection", () => {
+    const empty = emptyNftCollectionProfile("0xnft");
+    expect(empty.contract).toBe("0xnft");
+    expect(empty.totalSupply).toBe(0);
+    expect(empty.ownerCount).toBe(0);
+    expect(empty.salesSeries).toEqual([]);
+    expect(empty.holderDistribution).toEqual([]);
+  });
+});
+
+// ---------- data completeness classifier ----------
+
+describe("providers — data completeness", () => {
+  it("walletCompleteness returns 'mock' when not live", () => {
+    const empty = emptyWalletProfile("0xabc");
+    expect(walletCompleteness(empty, false)).toBe("mock");
+  });
+
+  it("walletCompleteness returns 'mock' on a live skeleton with no data", () => {
+    const empty = emptyWalletProfile("0xabc");
+    expect(walletCompleteness(empty, true)).toBe("mock");
+  });
+
+  it("walletCompleteness returns 'partial' when only assets exist", () => {
+    const partial = {
+      ...emptyWalletProfile("0xabc"),
+      assets: [{ symbol: "ETH", name: "Ether", balance: 1, valueUsd: 0, changePct24h: 0 }],
+    };
+    expect(walletCompleteness(partial, true)).toBe("partial");
+  });
+
+  it("walletCompleteness returns 'full' when assets + txs + counterparties are all present", () => {
+    const full = {
+      ...emptyWalletProfile("0xabc"),
+      assets: [{ symbol: "ETH", name: "Ether", balance: 1, valueUsd: 0, changePct24h: 0 }],
+      transactions: [
+        {
+          hash: "0x1",
+          kind: "send" as const,
+          direction: "out" as const,
+          counterparty: "0x2",
+          asset: "ETH",
+          amount: 1,
+          valueUsd: 0,
+          timestamp: "2026-04-01T00:00:00Z",
+        },
+      ],
+      counterparties: [
+        {
+          address: "0x2",
+          category: "exchange" as const,
+          volumeUsd: 100,
+          txCount: 1,
+          riskLevel: "info" as const,
+        },
+      ],
+    };
+    expect(walletCompleteness(full, true)).toBe("full");
+  });
+
+  it("tokenCompleteness distinguishes mock / partial / full", () => {
+    const empty = emptyTokenProfile("0xtok");
+    expect(tokenCompleteness(empty, true)).toBe("mock");
+
+    const partial = {
+      ...empty,
+      name: "Live Token",
+      symbol: "LIVE",
+    };
+    expect(tokenCompleteness(partial, true)).toBe("partial");
+
+    const full = {
+      ...partial,
+      liquidityPools: [
+        { dex: "Uni", pair: "LIVE/ETH", liquidityUsd: 1, lockedPct: 0, locked: false },
+      ],
+      permissions: [
+        {
+          name: "ownership",
+          owner: "0x0",
+          severity: "info" as const,
+          description: "renounced",
+        },
+      ],
+    };
+    expect(tokenCompleteness(full, true)).toBe("full");
+  });
+
+  it("nftCompleteness requires supply + owners + floor for full", () => {
+    const empty = emptyNftCollectionProfile("0xnft");
+    expect(nftCompleteness(empty, true)).toBe("mock");
+
+    const full = {
+      ...empty,
+      totalSupply: 1000,
+      ownerCount: 500,
+      floorEth: 0.1,
+    };
+    expect(nftCompleteness(full, true)).toBe("full");
   });
 });
 
@@ -576,5 +938,24 @@ describe("providers — configuration", () => {
     });
     expect(config.moralisApiKey).toBe("override-key");
     expect(config.defaultChain).toBe("cronos");
+  });
+
+  it("hasLiveConfig returns true when either a proxy URL or a Moralis key is set", () => {
+    expect(hasLiveConfig(testConfig())).toBe(false);
+    expect(hasLiveConfig(testConfig({ moralisApiKey: "k" }))).toBe(true);
+    expect(
+      hasLiveConfig(
+        testConfig({ oracleProxyUrl: "https://example.invalid/oracle" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("isProductionSafe requires a proxy URL (never a raw key)", () => {
+    expect(isProductionSafe(testConfig({ moralisApiKey: "k" }))).toBe(false);
+    expect(
+      isProductionSafe(
+        testConfig({ oracleProxyUrl: "https://example.invalid/oracle" }),
+      ),
+    ).toBe(true);
   });
 });

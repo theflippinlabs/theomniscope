@@ -153,20 +153,17 @@ export class CommandBrain {
         nft: c,
       };
 
-    // Last resort: a 0x-shaped address falls back to the first wallet fixture
+    // A 0x-shaped identifier with no live data and no fixture match
+    // resolves as an "unknown wallet" with NO fixture attached. The
+    // engine produces a degraded investigation (agents report "no
+    // data") rather than silently borrowing Whale 042's profile —
+    // that was the root cause of the fake-data confusion bug.
     if (/^0x[0-9a-fA-F]{40}$/.test(id)) {
-      const fallback = this.providers.wallet.resolve(
-        this.providers.wallet.resolve("Whale 042")?.address ?? id,
-      );
-      if (fallback) {
-        return {
-          type: "wallet",
-          identifier: id,
-          label: `Unknown wallet ${id.slice(0, 6)}…${id.slice(-4)}`,
-          chain: fallback.chain,
-          wallet: fallback,
-        };
-      }
+      return {
+        type: "wallet",
+        identifier: id,
+        label: `Unknown wallet ${id.slice(0, 6)}…${id.slice(-4)}`,
+      };
     }
 
     // Absolute fallback — return a degraded entity. This will produce a

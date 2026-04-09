@@ -22,25 +22,65 @@ import {
   SeverityPill,
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
-import { WALLET_FIXTURES } from "@/lib/oracle/mock-data";
-import { prefetchEntity, readCachedWallet } from "@/lib/providers";
+import { WALLET_FIXTURES } from "@/demo/fixtures";
+import {
+  emptyWalletProfile,
+  prefetchEntity,
+  readCachedWallet,
+  walletCompleteness,
+  type DataCompleteness,
+} from "@/lib/providers";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
-function resolveInitial(q: string | null) {
+interface AnalyzerState {
+  wallet: ReturnType<typeof emptyWalletProfile> | (typeof WALLET_FIXTURES)[number];
+  report: ReturnType<typeof runAnalysis>;
+  isLiveData: boolean;
+  dataCompleteness: DataCompleteness;
+}
+
+function buildReport(wallet: AnalyzerState["wallet"]) {
+  return runAnalysis({
+    entityType: "wallet",
+    wallet,
+    identifier: wallet.address,
+    label: wallet.label ?? wallet.address,
+  });
+}
+
+/**
+ * Strict routing:
+ *   - If the query is a real 0x address, render an empty skeleton
+ *     profile so the page never shows fixture data under a live
+ *     address. The async effect below upgrades the state if the
+ *     proxy returns live data.
+ *   - Otherwise the query is treated as a human label (demo flow)
+ *     and matched against the fixtures.
+ */
+function resolveInitial(q: string | null): AnalyzerState {
+  const trimmed = (q ?? "").trim();
+  if (trimmed && ADDRESS_RE.test(trimmed)) {
+    const empty = emptyWalletProfile(trimmed);
+    return {
+      wallet: empty,
+      report: buildReport(empty),
+      isLiveData: false,
+      dataCompleteness: "mock",
+    };
+  }
   const match =
     WALLET_FIXTURES.find(
       (w) =>
-        (w.label ?? "").toLowerCase() === (q ?? "").toLowerCase() ||
-        w.address.toLowerCase() === (q ?? "").toLowerCase(),
+        (w.label ?? "").toLowerCase() === trimmed.toLowerCase() ||
+        w.address.toLowerCase() === trimmed.toLowerCase(),
     ) ?? WALLET_FIXTURES[0];
-  const r = runAnalysis({
-    entityType: "wallet",
+  return {
     wallet: match,
-    identifier: match.address,
-    label: match.label ?? match.address,
-  });
-  return { wallet: match, report: r, isLiveData: false };
+    report: buildReport(match),
+    isLiveData: false,
+    dataCompleteness: "mock",
+  };
 }
 
 export default function OracleWalletAnalyzer() {
@@ -49,12 +89,12 @@ export default function OracleWalletAnalyzer() {
 
   // Initial sync render — identical to the previous useMemo path so
   // the demo continues to work without any loading spinner.
-  const [state, setState] = useState(() => resolveInitial(q));
+  const [state, setState] = useState<AnalyzerState>(() => resolveInitial(q));
   const { wallet, report } = state;
 
   // When the query is a real 0x address, attempt a live prefetch and
   // re-run the analysis with the cached data. Any failure (no API key,
-  // rate limit, network error) falls back to the mock snapshot above.
+  // rate limit, network error) keeps the skeleton in place.
   useEffect(() => {
     setState(resolveInitial(q));
     if (!q || !ADDRESS_RE.test(q.trim())) return;
@@ -73,9 +113,14 @@ export default function OracleWalletAnalyzer() {
           identifier: live.address,
           label: live.label ?? live.address,
         });
-        setState({ wallet: live, report: liveReport, isLiveData: true });
+        setState({
+          wallet: live,
+          report: liveReport,
+          isLiveData: true,
+          dataCompleteness: walletCompleteness(live, true),
+        });
       } catch (err) {
-        console.warn("[OracleWalletAnalyzer] prefetch failed, keeping fallback", err);
+        console.warn("[OracleWalletAnalyzer] prefetch failed, keeping skeleton", err);
       }
     })();
     return () => {

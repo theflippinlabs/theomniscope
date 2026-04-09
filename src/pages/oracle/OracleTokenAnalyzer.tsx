@@ -15,38 +15,75 @@ import {
   SeverityPill,
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
-import { TOKEN_FIXTURES } from "@/lib/oracle/mock-data";
-import { prefetchEntity, readCachedToken } from "@/lib/providers";
+import { TOKEN_FIXTURES } from "@/demo/fixtures";
+import {
+  emptyTokenProfile,
+  prefetchEntity,
+  readCachedToken,
+  tokenCompleteness,
+  type DataCompleteness,
+} from "@/lib/providers";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
-function resolveInitial(q: string) {
+interface AnalyzerState {
+  token: ReturnType<typeof emptyTokenProfile> | (typeof TOKEN_FIXTURES)[number];
+  report: ReturnType<typeof runAnalysis>;
+  isLiveData: boolean;
+  dataCompleteness: DataCompleteness;
+}
+
+function buildReport(token: AnalyzerState["token"]) {
+  return runAnalysis({
+    entityType: "token",
+    token,
+    identifier: token.address,
+    label: `${token.name} (${token.symbol})`,
+  });
+}
+
+/**
+ * Strict routing:
+ *   - 0x address → empty skeleton (never a fixture). The async
+ *     effect below may upgrade the state with live data.
+ *   - human label → fixture match for the demo experience.
+ */
+function resolveInitial(q: string): AnalyzerState {
+  const trimmed = q.trim();
+  if (trimmed && ADDRESS_RE.test(trimmed)) {
+    const empty = emptyTokenProfile(trimmed);
+    return {
+      token: empty,
+      report: buildReport(empty),
+      isLiveData: false,
+      dataCompleteness: "mock",
+    };
+  }
   const match =
     TOKEN_FIXTURES.find(
       (t) =>
-        t.symbol.toLowerCase() === q.toLowerCase() ||
-        t.name.toLowerCase() === q.toLowerCase() ||
-        t.address.toLowerCase() === q.toLowerCase(),
+        t.symbol.toLowerCase() === trimmed.toLowerCase() ||
+        t.name.toLowerCase() === trimmed.toLowerCase() ||
+        t.address.toLowerCase() === trimmed.toLowerCase(),
     ) ?? TOKEN_FIXTURES[1];
-  const r = runAnalysis({
-    entityType: "token",
+  return {
     token: match,
-    identifier: match.address,
-    label: `${match.name} (${match.symbol})`,
-  });
-  return { token: match, report: r, isLiveData: false };
+    report: buildReport(match),
+    isLiveData: false,
+    dataCompleteness: "mock",
+  };
 }
 
 export default function OracleTokenAnalyzer() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
 
-  const [state, setState] = useState(() => resolveInitial(q));
+  const [state, setState] = useState<AnalyzerState>(() => resolveInitial(q));
   const { token, report } = state;
 
   // If q looks like a real contract address, prefetch GoPlus +
-  // DexScreener, then re-run the analysis with the live data.
-  // On failure we quietly keep the mock fallback.
+  // DexScreener (via the secure proxy), then re-run the analysis
+  // with the live data. On failure we keep the skeleton.
   useEffect(() => {
     setState(resolveInitial(q));
     if (!q || !ADDRESS_RE.test(q.trim())) return;
@@ -64,9 +101,14 @@ export default function OracleTokenAnalyzer() {
           identifier: live.address,
           label: `${live.name} (${live.symbol})`,
         });
-        setState({ token: live, report: liveReport, isLiveData: true });
+        setState({
+          token: live,
+          report: liveReport,
+          isLiveData: true,
+          dataCompleteness: tokenCompleteness(live, true),
+        });
       } catch (err) {
-        console.warn("[OracleTokenAnalyzer] prefetch failed, keeping fallback", err);
+        console.warn("[OracleTokenAnalyzer] prefetch failed, keeping skeleton", err);
       }
     })();
     return () => {

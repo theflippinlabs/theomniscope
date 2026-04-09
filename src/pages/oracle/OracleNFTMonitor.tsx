@@ -16,37 +16,76 @@ import {
   SectionHeader,
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
-import { NFT_FIXTURES } from "@/lib/oracle/mock-data";
-import { prefetchEntity, readCachedNft } from "@/lib/providers";
+import { NFT_FIXTURES } from "@/demo/fixtures";
+import {
+  emptyNftCollectionProfile,
+  nftCompleteness,
+  prefetchEntity,
+  readCachedNft,
+  type DataCompleteness,
+} from "@/lib/providers";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
-function resolveInitial(q: string) {
+interface MonitorState {
+  coll:
+    | ReturnType<typeof emptyNftCollectionProfile>
+    | (typeof NFT_FIXTURES)[number];
+  report: ReturnType<typeof runAnalysis>;
+  isLiveData: boolean;
+  dataCompleteness: DataCompleteness;
+}
+
+function buildReport(coll: MonitorState["coll"]) {
+  return runAnalysis({
+    entityType: "nft",
+    nft: coll,
+    identifier: coll.contract,
+    label: coll.name,
+  });
+}
+
+/**
+ * Strict routing for NFT collections:
+ *   - 0x contract address → empty skeleton. Async prefetch may
+ *     upgrade to live Reservoir data.
+ *   - human label / slug → demo fixture match.
+ */
+function resolveInitial(q: string): MonitorState {
+  const trimmed = q.trim();
+  if (trimmed && ADDRESS_RE.test(trimmed)) {
+    const empty = emptyNftCollectionProfile(trimmed);
+    return {
+      coll: empty,
+      report: buildReport(empty),
+      isLiveData: false,
+      dataCompleteness: "mock",
+    };
+  }
   const match =
     NFT_FIXTURES.find(
       (c) =>
-        c.name.toLowerCase() === q.toLowerCase() ||
-        c.slug.toLowerCase() === q.toLowerCase() ||
-        c.contract.toLowerCase() === q.toLowerCase(),
+        c.name.toLowerCase() === trimmed.toLowerCase() ||
+        c.slug.toLowerCase() === trimmed.toLowerCase() ||
+        c.contract.toLowerCase() === trimmed.toLowerCase(),
     ) ?? NFT_FIXTURES[1];
-  const r = runAnalysis({
-    entityType: "nft",
-    nft: match,
-    identifier: match.contract,
-    label: match.name,
-  });
-  return { coll: match, report: r, isLiveData: false };
+  return {
+    coll: match,
+    report: buildReport(match),
+    isLiveData: false,
+    dataCompleteness: "mock",
+  };
 }
 
 export default function OracleNFTMonitor() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
 
-  const [state, setState] = useState(() => resolveInitial(q));
+  const [state, setState] = useState<MonitorState>(() => resolveInitial(q));
   const { coll, report } = state;
 
   // Attempt a live Reservoir prefetch for real contract addresses;
-  // everything else resolves via the mock fixtures above.
+  // on failure we keep the skeleton (never fall back to fixtures).
   useEffect(() => {
     setState(resolveInitial(q));
     if (!q || !ADDRESS_RE.test(q.trim())) return;
@@ -64,9 +103,14 @@ export default function OracleNFTMonitor() {
           identifier: live.contract,
           label: live.name,
         });
-        setState({ coll: live, report: liveReport, isLiveData: true });
+        setState({
+          coll: live,
+          report: liveReport,
+          isLiveData: true,
+          dataCompleteness: nftCompleteness(live, true),
+        });
       } catch (err) {
-        console.warn("[OracleNFTMonitor] prefetch failed, keeping fallback", err);
+        console.warn("[OracleNFTMonitor] prefetch failed, keeping skeleton", err);
       }
     })();
     return () => {
@@ -108,7 +152,11 @@ export default function OracleNFTMonitor() {
         <MetricCard
           label="Owners"
           value={coll.ownerCount.toLocaleString()}
-          hint={`${Math.round((coll.ownerCount / coll.totalSupply) * 100)}% distribution`}
+          hint={
+            coll.totalSupply > 0
+              ? `${Math.round((coll.ownerCount / coll.totalSupply) * 100)}% distribution`
+              : "No data"
+          }
           icon={<Users className="h-3.5 w-3.5" />}
         />
         <MetricCard

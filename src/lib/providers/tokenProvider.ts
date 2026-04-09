@@ -27,6 +27,7 @@ import {
   type ProviderConfig,
   type SupportedChain,
 } from "./config";
+import { callOracleProxy } from "./proxy";
 import { safeFetchJson } from "./safe-fetch";
 
 // ---------- GoPlus shapes ----------
@@ -265,6 +266,49 @@ export interface FetchTokenOptions {
   config?: ProviderConfig;
 }
 
+/**
+ * Composite shape returned by both the secure proxy and the direct
+ * keyless path. Transform code downstream reads from this single
+ * contract.
+ */
+interface RawTokenData {
+  security: GoPlusSecurityRaw | null;
+  pairs: DexScreenerPair[];
+}
+
+/**
+ * Fetch raw token data from the oracle proxy (production path).
+ */
+async function fetchTokenRawFromProxy(
+  address: string,
+  chainKey: SupportedChain,
+  config: ProviderConfig,
+): Promise<RawTokenData | null> {
+  return callOracleProxy<RawTokenData>(
+    { type: "token", identifier: address, chain: chainKey },
+    config,
+  );
+}
+
+/**
+ * Fetch raw token data directly from GoPlus + DexScreener. Both
+ * APIs are keyless on the free tier, so this path is safe to use in
+ * the browser — the only reason to prefer the proxy is consistency
+ * with the wallet/nft paths.
+ */
+async function fetchTokenRawDirect(
+  address: string,
+  chainKey: SupportedChain,
+  timeoutMs: number,
+): Promise<RawTokenData | null> {
+  const [security, pairs] = await Promise.all([
+    fetchGoPlusSecurity(address, chainKey, timeoutMs),
+    fetchDexScreenerToken(address, timeoutMs),
+  ]);
+  if (!security && pairs.length === 0) return null;
+  return { security, pairs };
+}
+
 export async function fetchLiveTokenProfile(
   address: string,
   options: FetchTokenOptions = {},
@@ -274,17 +318,24 @@ export async function fetchLiveTokenProfile(
   const chain = chainInfo(chainKey);
   const timeoutMs = config.requestTimeoutMs;
 
-  const [security, dexPairs] = await Promise.all([
-    fetchGoPlusSecurity(address, chainKey, timeoutMs),
-    fetchDexScreenerToken(address, timeoutMs),
-  ]);
+  // Route through the proxy when configured (production-safe path),
+  // otherwise fall back to direct keyless fetches against GoPlus +
+  // DexScreener. Either path yields the same `RawTokenData` shape.
+  let raw: RawTokenData | null = null;
+  if (config.oracleProxyUrl) {
+    raw = await fetchTokenRawFromProxy(address, chainKey, config);
+  }
+  if (!raw) {
+    raw = await fetchTokenRawDirect(address, chainKey, timeoutMs);
+  }
 
   // Both sources failed — we cannot build a profile with any
   // meaningful content. Return null so the hybrid registry falls
   // back to the mock layer.
-  if (!security && dexPairs.length === 0) return null;
+  if (!raw) return null;
 
-  const safe = security ?? ({} as GoPlusSecurityRaw);
+  const safe = raw.security ?? ({} as GoPlusSecurityRaw);
+  const dexPairs = raw.pairs;
   const topPair = dexPairs.sort(
     (a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0),
   )[0];
