@@ -17,6 +17,8 @@ import {
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
 import { TOKEN_FIXTURES } from "@/demo/fixtures";
+import { useAnalysisHistory } from "@/hooks/useAnalysisHistory";
+import { entryFromReport } from "@/lib/history/store";
 import {
   emptyTokenProfile,
   prefetchEntity,
@@ -86,6 +88,7 @@ export default function OracleTokenAnalyzer() {
 
   const [state, setState] = useState<AnalyzerState>(() => resolveInitial(q));
   const { token, report } = state;
+  const { save: saveToHistory } = useAnalysisHistory();
 
   // If q looks like a real contract address, prefetch through the
   // secure proxy, then re-run the analysis with the live data.
@@ -124,6 +127,7 @@ export default function OracleTokenAnalyzer() {
           dataCompleteness: completeness,
           status: statusFromCompleteness(completeness),
         });
+        saveToHistory(entryFromReport(liveReport));
       } catch (err) {
         console.warn("[OracleTokenAnalyzer] prefetch failed, keeping skeleton", err);
         if (!cancelled) {

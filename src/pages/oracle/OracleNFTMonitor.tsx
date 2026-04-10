@@ -17,6 +17,8 @@ import {
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
 import { NFT_FIXTURES } from "@/demo/fixtures";
+import { useAnalysisHistory } from "@/hooks/useAnalysisHistory";
+import { entryFromReport } from "@/lib/history/store";
 import {
   emptyNftCollectionProfile,
   nftCompleteness,
@@ -88,6 +90,7 @@ export default function OracleNFTMonitor() {
 
   const [state, setState] = useState<MonitorState>(() => resolveInitial(q));
   const { coll, report } = state;
+  const { save: saveToHistory } = useAnalysisHistory();
 
   // Attempt a live Reservoir prefetch (through the proxy) for real
   // contract addresses. Status transitions: loading → live |
@@ -126,6 +129,7 @@ export default function OracleNFTMonitor() {
           dataCompleteness: completeness,
           status: statusFromCompleteness(completeness),
         });
+        saveToHistory(entryFromReport(liveReport));
       } catch (err) {
         console.warn("[OracleNFTMonitor] prefetch failed, keeping skeleton", err);
         if (!cancelled) {

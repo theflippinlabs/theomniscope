@@ -24,6 +24,8 @@ import {
 } from "@/components/oracle/primitives";
 import { runAnalysis } from "@/lib/oracle/agents/command-brain";
 import { WALLET_FIXTURES } from "@/demo/fixtures";
+import { useAnalysisHistory } from "@/hooks/useAnalysisHistory";
+import { entryFromReport } from "@/lib/history/store";
 import {
   emptyWalletProfile,
   prefetchEntity,
@@ -97,6 +99,7 @@ export default function OracleWalletAnalyzer() {
   // the demo continues to work without any loading spinner.
   const [state, setState] = useState<AnalyzerState>(() => resolveInitial(q));
   const { wallet, report } = state;
+  const { save: saveToHistory } = useAnalysisHistory();
 
   // When the query is a real 0x address, attempt a live prefetch and
   // re-run the analysis with the cached data. Status transitions:
@@ -137,6 +140,8 @@ export default function OracleWalletAnalyzer() {
           dataCompleteness: completeness,
           status: statusFromCompleteness(completeness),
         });
+        // Persist to history
+        saveToHistory(entryFromReport(liveReport));
       } catch (err) {
         console.warn("[OracleWalletAnalyzer] prefetch failed, keeping skeleton", err);
         if (!cancelled) {

@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Radar,
+  Scan,
   Search,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -51,6 +52,11 @@ const NAV_SECTIONS: {
         to: "/app/nft",
         label: "NFT Monitoring",
         icon: <ImageIcon className="h-4 w-4" />,
+      },
+      {
+        to: "/app/forensic",
+        label: "Forensic Mode",
+        icon: <Scan className="h-4 w-4" />,
       },
       {
         to: "/app/signals",
@@ -246,6 +252,7 @@ function Breadcrumbs({ pathname }: { pathname: string }) {
     app: "Oracle",
     command: "Command Center",
     dashboard: "Dashboard",
+    forensic: "Forensic Mode",
     wallet: "Wallet Analyzer",
     token: "Token Analyzer",
     nft: "NFT Monitoring",

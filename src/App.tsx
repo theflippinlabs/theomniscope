@@ -30,6 +30,7 @@ import OracleAlerts from "@/pages/oracle/OracleAlerts";
 import OracleHistory from "@/pages/oracle/OracleHistory";
 import OracleSettings from "@/pages/oracle/OracleSettings";
 import OracleAnalyze from "@/pages/oracle/OracleAnalyze";
+import OracleForensic from "@/pages/oracle/OracleForensic";
 
 import NotFound from "@/pages/NotFound";
 
@@ -83,6 +84,7 @@ function AppContent() {
           <Route path="investigations" element={<OracleInvestigations />} />
           <Route path="reports" element={<OracleReports />} />
           <Route path="alerts" element={<OracleAlerts />} />
+          <Route path="forensic" element={<OracleForensic />} />
           <Route path="history" element={<OracleHistory />} />
           <Route path="settings" element={<OracleSettings />} />
         </Route>
