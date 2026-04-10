@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Coins, Image as ImageIcon, Layers, Plus, Search, Wallet } from "lucide-react";
+import { Coins, Image as ImageIcon, Layers, Plus, Radar, Search, Wallet } from "lucide-react";
 import {
   OracleCard,
   OracleCardHeader,
   SectionHeader,
 } from "@/components/oracle/primitives";
 import { CompactScoreBadge, ConfidenceBar } from "@/components/oracle/ScoreBadge";
-import { INVESTIGATIONS } from "@/lib/oracle/mock-data";
+import { useAnalysisHistory } from "@/hooks/useAnalysisHistory";
 import type { EntityType } from "@/lib/oracle/types";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,8 @@ const TYPE_META: Record<EntityType, { icon: React.ReactNode; label: string }> = 
 export default function OracleInvestigations() {
   const [mode, setMode] = useState<"list" | "launch">("list");
   const [chosen, setChosen] = useState<EntityType>("token");
+  const { entries } = useAnalysisHistory();
+  const forensicEntries = entries.filter((e) => e.mode === "forensic");
 
   return (
     <div className="space-y-8">
@@ -58,53 +60,61 @@ export default function OracleInvestigations() {
       </div>
 
       {mode === "list" && (
-        <section className="grid gap-4 md:grid-cols-2">
-          {INVESTIGATIONS.map((inv) => {
-            const meta = TYPE_META[inv.entityType];
-            return (
-              <OracleCard key={inv.id} className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
-                      {meta.icon}
-                      {meta.label}
-                      <span className="text-zinc-700">·</span>
-                      <span className={
-                        inv.status === "active"
-                          ? "text-sky-300"
-                          : inv.status === "complete"
-                            ? "text-emerald-300"
-                            : inv.status === "draft"
-                              ? "text-amber-300"
-                              : "text-zinc-400"
-                      }>{inv.status}</span>
+        <section>
+          {forensicEntries.length === 0 ? (
+            <OracleCard className="p-8 text-center">
+              <Radar className="mx-auto h-8 w-8 text-zinc-700" />
+              <p className="mt-3 text-sm text-zinc-400">
+                No investigations yet. Use{" "}
+                <a href="/app/forensic" className="text-sky-300 hover:text-sky-200">
+                  Forensic Mode
+                </a>{" "}
+                to run a deep multi-agent investigation.
+              </p>
+            </OracleCard>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {forensicEntries.map((entry) => {
+                const meta =
+                  TYPE_META[entry.entityType as EntityType] ?? TYPE_META.token;
+                return (
+                  <OracleCard key={entry.id} className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                          {meta.icon}
+                          {meta.label}
+                          <span className="text-zinc-700">·</span>
+                          <span className="text-emerald-300">complete</span>
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-zinc-100">
+                          Forensic — {entry.entityLabel}
+                        </div>
+                        <div className="mt-0.5 font-mono text-[10px] text-zinc-500">
+                          {entry.address.slice(0, 14)}…
+                        </div>
+                      </div>
+                      <CompactScoreBadge score={entry.riskScore} />
                     </div>
-                    <div className="mt-1 text-sm font-semibold text-zinc-100">
-                      {inv.title}
+                    <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+                      {entry.executiveSummary}
+                    </p>
+                    <div className="mt-4 flex items-center gap-3">
+                      <div className="flex-1">
+                        <ConfidenceBar confidence={entry.confidence} />
+                      </div>
+                      <div className="text-[10px] tabular-nums text-zinc-500">
+                        {entry.report.findings.length} findings
+                      </div>
                     </div>
-                    <div className="mt-0.5 font-mono text-[10px] text-zinc-500">
-                      {inv.entity}
+                    <div className="mt-3 border-t border-white/[0.05] pt-3 text-[10px] text-zinc-500">
+                      {new Date(entry.createdAt).toLocaleDateString()}
                     </div>
-                  </div>
-                  <CompactScoreBadge score={inv.riskScore} />
-                </div>
-                <p className="mt-3 text-xs leading-relaxed text-zinc-400">
-                  {inv.summary}
-                </p>
-                <div className="mt-4 flex items-center gap-3">
-                  <div className="flex-1">
-                    <ConfidenceBar confidence={inv.confidence} />
-                  </div>
-                  <div className="text-[10px] tabular-nums text-zinc-500">
-                    {inv.findingsCount} findings
-                  </div>
-                </div>
-                <div className="mt-3 border-t border-white/[0.05] pt-3 text-[10px] text-zinc-500">
-                  Opened {inv.createdAt}
-                </div>
-              </OracleCard>
-            );
-          })}
+                  </OracleCard>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 

@@ -37,7 +37,12 @@ function readEnv(key: string): string | undefined {
 export async function startCheckout(
   plan: CheckoutPlan,
 ): Promise<CheckoutResult> {
-  const url = readEnv("VITE_STRIPE_CHECKOUT_URL");
+  // Derive checkout URL from Supabase URL (same pattern as oracle-fetch).
+  const explicit = readEnv("VITE_STRIPE_CHECKOUT_URL");
+  const supabaseUrl = readEnv("VITE_SUPABASE_URL");
+  const url =
+    explicit ??
+    (supabaseUrl ? `${supabaseUrl}/functions/v1/stripe-checkout` : null);
   if (!url) {
     return { ok: false, error: "Checkout is not configured." };
   }

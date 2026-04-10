@@ -53,12 +53,42 @@ function readEnv(key: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Derive the oracle-fetch edge function URL from the Supabase project
+ * URL that Lovable already injects at build time. This way we don't
+ * need a separate VITE_ORACLE_PROXY_URL env var — it "just works"
+ * on Lovable's hosting.
+ *
+ * Priority:
+ *   1. Explicit VITE_ORACLE_PROXY_URL (if someone sets it)
+ *   2. Derived from VITE_SUPABASE_URL + "/functions/v1/oracle-fetch"
+ *   3. undefined (providers return null → mock fallback)
+ */
+function resolveProxyUrl(): string | undefined {
+  const explicit = readEnv("VITE_ORACLE_PROXY_URL");
+  if (explicit) return explicit;
+  const supabaseUrl = readEnv("VITE_SUPABASE_URL");
+  if (supabaseUrl) return `${supabaseUrl}/functions/v1/oracle-fetch`;
+  return undefined;
+}
+
+/**
+ * Same derivation for the Stripe checkout edge function.
+ */
+export function resolveStripeCheckoutUrl(): string | undefined {
+  const explicit = readEnv("VITE_STRIPE_CHECKOUT_URL");
+  if (explicit) return explicit;
+  const supabaseUrl = readEnv("VITE_SUPABASE_URL");
+  if (supabaseUrl) return `${supabaseUrl}/functions/v1/stripe-checkout`;
+  return undefined;
+}
+
 export function buildProviderConfig(
   overrides: Partial<ProviderConfig> = {},
 ): ProviderConfig {
   return {
     oracleProxyUrl:
-      overrides.oracleProxyUrl ?? readEnv("VITE_ORACLE_PROXY_URL"),
+      overrides.oracleProxyUrl ?? resolveProxyUrl(),
     defaultChain: overrides.defaultChain ?? "eth",
     requestTimeoutMs: overrides.requestTimeoutMs ?? 10_000,
     cache: {

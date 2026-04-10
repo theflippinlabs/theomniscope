@@ -38,3 +38,21 @@ verify_jwt = false
 
 [functions.ai-analyze]
 verify_jwt = false
+
+[functions.oracle-fetch]
+verify_jwt = false
+
+[functions.stripe-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.dexscreener-lookup]
+verify_jwt = false
+
+[functions.check-admin]
+verify_jwt = false
+
+[functions.wallet-scanner]
+verify_jwt = false
