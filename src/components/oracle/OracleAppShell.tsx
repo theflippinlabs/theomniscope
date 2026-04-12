@@ -220,11 +220,11 @@ export function OracleAppShell() {
           {/* Mobile bottom nav */}
           <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-white/[0.06] bg-[#05060a]/90 py-2 backdrop-blur-xl lg:hidden">
             {[
-              { to: "/app/command", icon: <LayoutDashboard className="h-4 w-4" />, label: "Center" },
+              { to: "/app/command", icon: <LayoutDashboard className="h-4 w-4" />, label: "Home" },
               { to: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard" },
-              { to: "/app/wallet", icon: <Wallet className="h-4 w-4" />, label: "Wallet" },
-              { to: "/app/token", icon: <Coins className="h-4 w-4" />, label: "Token" },
-              { to: "/app/alerts", icon: <AlertTriangle className="h-4 w-4" />, label: "Alerts" },
+              { to: "/app/forensic", icon: <Scan className="h-4 w-4" />, label: "Oracle" },
+              { to: "/app/history", icon: <ListChecks className="h-4 w-4" />, label: "History" },
+              { to: "/app/settings", icon: <SettingsIcon className="h-4 w-4" />, label: "Profile" },
             ].map((i) => (
               <NavLink
                 key={i.to}

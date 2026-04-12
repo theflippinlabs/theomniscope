@@ -3,9 +3,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { I18nProvider } from "@/lib/i18n";
-import { initAuthListener } from "@/lib/store/useAuthStore";
+import { initAuthListener, useAuthStore } from "@/lib/store/useAuthStore";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Oracle Sentinel — public surface
@@ -36,6 +36,28 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
+/**
+ * Smart home route: authenticated users (or users with an invitation
+ * code) go straight to /app. Everyone else sees the landing page.
+ */
+function SmartHome() {
+  const session = useAuthStore((s) => s.session);
+  const loading = useAuthStore((s) => s.loading);
+
+  // Check invitation gate (same logic as ProtectedRoute)
+  const hasInvitation = (() => {
+    try {
+      return Boolean(localStorage.getItem("oracle_device_id"));
+    } catch {
+      return false;
+    }
+  })();
+
+  if (loading) return <OracleLanding />;
+  if (session || hasInvitation) return <Navigate to="/app" replace />;
+  return <OracleLanding />;
+}
+
 function AppContent() {
   // Subscribe to Supabase auth state once for the whole app.
   useEffect(() => initAuthListener(), []);
@@ -43,8 +65,8 @@ function AppContent() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public marketing / trust surface */}
-        <Route path="/" element={<OracleLanding />} />
+        {/* Smart home — redirects logged-in users to /app */}
+        <Route path="/" element={<SmartHome />} />
         <Route path="/methodology" element={<OracleMethodology />} />
         <Route path="/security" element={<OracleSecurity />} />
         <Route path="/transparency" element={<OracleTransparency />} />
