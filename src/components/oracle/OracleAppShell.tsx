@@ -217,21 +217,27 @@ export function OracleAppShell() {
             <Outlet />
           </main>
 
-          {/* Mobile bottom nav */}
-          <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-white/[0.06] bg-[#05060a]/90 py-2 backdrop-blur-xl lg:hidden">
+          {/* Bottom nav — always visible on all screen sizes */}
+          <nav
+            className="fixed bottom-0 left-0 right-0 flex items-center justify-around border-t border-white/[0.08] py-2.5 safe-area-bottom"
+            style={{
+              zIndex: 9999,
+              backgroundColor: "#05060a",
+            }}
+          >
             {[
-              { to: "/app/command", icon: <LayoutDashboard className="h-4 w-4" />, label: "Home" },
-              { to: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard" },
-              { to: "/app/forensic", icon: <Scan className="h-4 w-4" />, label: "Oracle" },
-              { to: "/app/history", icon: <ListChecks className="h-4 w-4" />, label: "History" },
-              { to: "/app/settings", icon: <SettingsIcon className="h-4 w-4" />, label: "Profile" },
+              { to: "/app/command", icon: <LayoutDashboard className="h-5 w-5" />, label: "Home" },
+              { to: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" />, label: "Dashboard" },
+              { to: "/app/forensic", icon: <Scan className="h-5 w-5" />, label: "Oracle" },
+              { to: "/app/history", icon: <ListChecks className="h-5 w-5" />, label: "History" },
+              { to: "/app/settings", icon: <SettingsIcon className="h-5 w-5" />, label: "Profile" },
             ].map((i) => (
               <NavLink
                 key={i.to}
                 to={i.to}
                 className={({ isActive }) =>
                   cn(
-                    "flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px]",
+                    "flex flex-col items-center gap-1 px-3 py-1.5 text-[10px] font-medium tracking-wide",
                     isActive ? "text-sky-300" : "text-zinc-500",
                   )
                 }
