@@ -1,12 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { I18nProvider } from "@/lib/i18n";
-import { initAuthListener, useAuthStore } from "@/lib/store/useAuthStore";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { initAuthListener } from "@/lib/store/useAuthStore";
+import InvitationGate from "@/components/InvitationGate";
 
 // Oracle Sentinel — public surface
 import OracleLanding from "@/pages/oracle/OracleLanding";
@@ -36,84 +36,67 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
-/**
- * Smart home route: authenticated users (or users with an invitation
- * code) go straight to /app. Everyone else sees the landing page.
- */
-function SmartHome() {
-  const session = useAuthStore((s) => s.session);
-  const loading = useAuthStore((s) => s.loading);
-
-  // Check invitation gate (same logic as ProtectedRoute)
-  const hasInvitation = (() => {
-    try {
-      return Boolean(localStorage.getItem("oracle_device_id"));
-    } catch {
-      return false;
-    }
-  })();
-
-  if (loading) return <OracleLanding />;
-  if (session || hasInvitation) return <Navigate to="/app" replace />;
-  return <OracleLanding />;
-}
-
 function AppContent() {
+  const [hasAccess, setHasAccess] = useState(false);
+
   // Subscribe to Supabase auth state once for the whole app.
   useEffect(() => initAuthListener(), []);
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Smart home — redirects logged-in users to /app */}
-        <Route path="/" element={<SmartHome />} />
+        {/* Public pages — accessible without invitation */}
         <Route path="/methodology" element={<OracleMethodology />} />
         <Route path="/security" element={<OracleSecurity />} />
         <Route path="/transparency" element={<OracleTransparency />} />
         <Route path="/legal" element={<OracleLegal />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Dashboard surface — top-level /dashboard route wrapped
-            in the shared OracleAppShell, hosting the orphaned
-            CommandCenter widget grid. */}
+        {/* Everything else goes through InvitationGate first */}
         <Route
-          path="/dashboard"
+          path="*"
           element={
-            <ProtectedRoute>
-              <OracleAppShell />
-            </ProtectedRoute>
+            !hasAccess ? (
+              <InvitationGate onGranted={() => setHasAccess(true)} />
+            ) : (
+              <AuthenticatedRoutes />
+            )
           }
-        >
-          <Route index element={<CommandCenter />} />
-        </Route>
-
-        {/* Oracle Sentinel command surface — requires a Supabase session */}
-        <Route
-          path="/app"
-          element={
-            <ProtectedRoute>
-              <OracleAppShell />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<OracleCommand />} />
-          <Route path="command" element={<OracleCommand />} />
-          <Route path="analyze" element={<OracleAnalyze />} />
-          <Route path="wallet" element={<OracleWalletAnalyzer />} />
-          <Route path="token" element={<OracleTokenAnalyzer />} />
-          <Route path="nft" element={<OracleNFTMonitor />} />
-          <Route path="signals" element={<OracleSignals />} />
-          <Route path="investigations" element={<OracleInvestigations />} />
-          <Route path="reports" element={<OracleReports />} />
-          <Route path="alerts" element={<OracleAlerts />} />
-          <Route path="forensic" element={<OracleForensic />} />
-          <Route path="history" element={<OracleHistory />} />
-          <Route path="settings" element={<OracleSettings />} />
-        </Route>
-
-        <Route path="*" element={<NotFound />} />
+        />
       </Routes>
     </BrowserRouter>
+  );
+}
+
+/**
+ * Routes available AFTER InvitationGate grants access.
+ * The OracleAppShell provides the sidebar (desktop) and
+ * bottom nav bar (mobile).
+ */
+function AuthenticatedRoutes() {
+  return (
+    <Routes>
+      {/* Main app inside the Oracle shell with nav bar */}
+      <Route element={<OracleAppShell />}>
+        <Route path="/" element={<OracleCommand />} />
+        <Route path="/app" element={<OracleCommand />} />
+        <Route path="/app/command" element={<OracleCommand />} />
+        <Route path="/app/analyze" element={<OracleAnalyze />} />
+        <Route path="/app/wallet" element={<OracleWalletAnalyzer />} />
+        <Route path="/app/token" element={<OracleTokenAnalyzer />} />
+        <Route path="/app/nft" element={<OracleNFTMonitor />} />
+        <Route path="/app/signals" element={<OracleSignals />} />
+        <Route path="/app/investigations" element={<OracleInvestigations />} />
+        <Route path="/app/reports" element={<OracleReports />} />
+        <Route path="/app/alerts" element={<OracleAlerts />} />
+        <Route path="/app/forensic" element={<OracleForensic />} />
+        <Route path="/app/history" element={<OracleHistory />} />
+        <Route path="/app/settings" element={<OracleSettings />} />
+        <Route path="/dashboard" element={<CommandCenter />} />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
