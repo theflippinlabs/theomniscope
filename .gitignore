@@ -23,6 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 # Environment variables
-.env
+# .env files with secrets are ignored, but .env.production is
+# committed intentionally for Railway deployment (contains only
+# the Supabase anon/public key which is safe to expose).
 .env.local
-.env.*
+.env.development
